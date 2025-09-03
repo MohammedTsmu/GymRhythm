@@ -157,7 +157,8 @@ function wirePhotoUpload(){
     const fd = new FormData();
     fd.append('photo', inp.files[0]);
     fd.append('date', new Date().toISOString().slice(0,10));
-    const json = await postForm(API('upload_photo.php'), fd);
+    // const json = await postForm(API('upload_photo.php'), fd);
+    const json = await postForm(API('upload_photo_blob.php'), fd);
     document.getElementById('photoMsg').textContent =
       json.ok ? ('حُفظت: ' + json.path) : ('خطأ: ' + (json.msg||''));    
     if (json.ok) { loadGalleryByGroup(); fixCalendarLayout(); }
@@ -237,16 +238,28 @@ async function loadGalleryByGroup(){
   (json.data||[]).forEach(item=>{
     const col = document.createElement('div');
     col.className = 'col-6 col-md-4 col-lg-3';
-    col.innerHTML = `
-      <div class="card p-1" style="background:var(--surface);border:1px solid var(--border)">
-        <img src="../${item.path}" class="img-fluid rounded" alt="" draggable="true" data-photo-id="${item.id}">
-        <div class="d-flex justify-content-between align-items-center mt-1">
-          <div class="form-check">
-            <input class="form-check-input selCompare" type="checkbox" data-path="../${item.path}">
+    // داخل loadGalleryByGroup() أثناء بناء الكروت
+      col.innerHTML = `
+        <div class="card p-1" style="background:var(--surface);border:1px solid var(--border)">
+          <img src="${API('photo_get.php')}?id=${item.id}" class="img-fluid rounded" alt="" draggable="true" data-photo-id="${item.id}">
+          <div class="d-flex justify-content-between align-items-center mt-1">
+            <div class="form-check">
+              <input class="form-check-input selCompare" type="checkbox" data-path="${API('photo_get.php')}?id=${item.id}">
+            </div>
+            <small class="text-muted">${item.date ?? ''}</small>
           </div>
-          <small class="text-muted">${item.date}</small>
-        </div>
-      </div>`;
+        </div>`;
+
+    // col.innerHTML = `
+    //   <div class="card p-1" style="background:var(--surface);border:1px solid var(--border)">
+    //     <img src="../${item.path}" class="img-fluid rounded" alt="" draggable="true" data-photo-id="${item.id}">
+    //     <div class="d-flex justify-content-between align-items-center mt-1">
+    //       <div class="form-check">
+    //         <input class="form-check-input selCompare" type="checkbox" data-path="../${item.path}">
+    //       </div>
+    //       <small class="text-muted">${item.date}</small>
+    //     </div>
+    //   </div>`;
     grid.appendChild(col);
   });
 
