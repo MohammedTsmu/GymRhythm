@@ -287,22 +287,162 @@ async function loadGalleryByGroup(){
   });
 }
 
-// مقارنة قبل/بعد
-function buildCompareSlider(imgA, imgB){
+// ================== مقارنة قبل/بعد (Responsive + سحب/لمس + نسبة تلقائية) ==================
+function ensureCompareStyles(){
+  if (document.getElementById('gr-compare-css')) return;
+  const css = `
+#compareWrap { width:100%; }
+#compareWrap .cmp-container{position:relative;width:100%;max-width:100%;background:#111;border-radius:.75rem;overflow:hidden;}
+#compareWrap .cmp-container img{display:block;width:100%;height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;}
+#compareWrap .cmp-mask{position:absolute;inset:0;overflow:hidden;width:50%;}
+#compareWrap .cmp-range{position:absolute;left:0;right:0;bottom:.5rem;width:96%;margin:0 auto;z-index:3;}
+#compareWrap .cmp-handle{position:absolute;top:0;bottom:0;left:50%;width:2px;transform:translateX(-1px);background:rgba(255,255,255,.85);box-shadow:0 0 0 1px rgba(0,0,0,.2);z-index:2;}
+#compareWrap .cmp-handle::before{content:'';position:absolute;top:50%;left:50%;width:28px;height:28px;transform:translate(-50%,-50%);border-radius:50%;background:rgba(255,255,255,.95);box-shadow:0 2px 8px rgba(0,0,0,.35);border:1px solid rgba(0,0,0,.15);}
+#compareModal .modal-dialog{max-width:min(100vw - 1rem, 900px);margin:1rem auto;}
+#compareModal .modal-body{padding:.75rem;}
+`;
+  const style = document.createElement('style');
+  style.id = 'gr-compare-css';
+  style.textContent = css;
+  document.head.appendChild(style);
+}
+
+async function buildCompareSlider(imgA, imgB){
+  ensureCompareStyles();
+
   const wrap = document.getElementById('compareWrap');
   wrap.innerHTML = `
-    <div style="position:relative">
-      <img id="cmpA" src="${imgA}" style="width:100%;display:block" alt="قبل">
-      <div id="cmpMask" style="position:absolute;top:0;left:0;width:50%;overflow:hidden">
-        <img id="cmpB" src="${imgB}" style="width:100%;display:block" alt="بعد">
+    <div class="cmp-container">
+      <img id="cmpA" alt="قبل">
+      <div id="cmpMask" class="cmp-mask">
+        <img id="cmpB" alt="بعد">
       </div>
-      <input id="cmpRange" type="range" min="0" max="100" value="50"
-        style="position:absolute;left:0;right:0;bottom:10px;width:100%">
+      <div id="cmpHandle" class="cmp-handle" aria-hidden="true"></div>
+      <input id="cmpRange" class="cmp-range" type="range" min="0" max="100" value="50" aria-label="مقارنة قبل/بعد">
+    </div>
+    <div class="d-flex align-items-center justify-content-center gap-2 mt-2">
+      <label class="small text-muted">Zoom</label>
+      <input id="cmpZoom" type="range" min="100" max="300" value="100" style="width:220px">
+      <button id="cmpZoomReset" type="button" class="btn btn-sm btn-secondary">Reset</button>
     </div>`;
+
+  const container = wrap.querySelector('.cmp-container');
+  const elA = wrap.querySelector('#cmpA');
+  const elB = wrap.querySelector('#cmpB');
   const mask = wrap.querySelector('#cmpMask');
+  const handle = wrap.querySelector('#cmpHandle');
   const range = wrap.querySelector('#cmpRange');
-  range.addEventListener('input', ()=> { mask.style.width = range.value + '%'; });
+  const zoomRange = wrap.querySelector('#cmpZoom');
+  const zoomReset = wrap.querySelector('#cmpZoomReset');
+
+  // تحميل صورة مع وعد
+  function load(src, el){
+    return new Promise((resolve, reject)=>{
+      el.onload = ()=> resolve({w: el.naturalWidth, h: el.naturalHeight});
+      el.onerror = ()=> reject(new Error('image load error'));
+      el.src = src;
+    });
+  }
+
+  // حمّل الصورتين
+  let r1, r2;
+  try{
+    [r1, r2] = await Promise.all([ load(imgA, elA), load(imgB, elB) ]);
+  }catch(e){
+    container.innerHTML = `<div class="p-3 text-danger">تعذّر تحميل الصور للمقارنة</div>`;
+    return;
+  }
+
+  // حدد النسبة من صورة A
+  const ratio = (r1.w && r1.h) ? (r1.w / r1.h) : (4/3);
+
+  // حاول استخدام aspect-ratio، ولو ما اشتغل اضبط ارتفاع يدويًا
+  try { container.style.aspectRatio = `${r1.w} / ${r1.h}`; } catch(_) {}
+  function sizeFallback(){
+    // لو ما طبّق المتصفح aspect-ratio (أحيانًا ببعض الثيمات/الإطارات) نضبط ارتفاع يدويًا
+    const rect = container.getBoundingClientRect();
+    const expectedH = Math.max(220, Math.round(rect.width / ratio)); // حدّ أدنى 220px
+    container.style.height = expectedH + 'px';
+  }
+  // طبّق fallback دائمًا لضمان الملاءمة
+  sizeFallback();
+
+  // سحب/لمس للسلايدر
+  function setPercent(p){
+    p = Math.max(0, Math.min(100, p));
+    mask.style.width = p + '%';
+    handle.style.left = p + '%';
+    range.value = p;
+  }
+  function percentFromEvent(evt){
+    const rect = container.getBoundingClientRect();
+    const x = (evt.touches ? evt.touches[0].clientX : evt.clientX) - rect.left;
+    return (x / rect.width) * 100;
+  }
+  let dragging = false;
+  function startDrag(evt){ dragging = true; setPercent(percentFromEvent(evt)); }
+  function moveDrag(evt){ if (!dragging) return; setPercent(percentFromEvent(evt)); }
+  function endDrag(){ dragging = false; }
+
+  container.addEventListener('mousedown', startDrag);
+  window.addEventListener('mousemove', moveDrag);
+  window.addEventListener('mouseup', endDrag);
+  container.addEventListener('touchstart', startDrag, {passive:true});
+  window.addEventListener('touchmove', moveDrag, {passive:true});
+  window.addEventListener('touchend', endDrag);
+
+  range.addEventListener('input', ()=> setPercent(parseInt(range.value,10)));
+  setPercent(50);
+
+  // زووم بسيط (تكبير متزامن للصورتين)
+  let scale = 1;
+  function applyZoom(){
+    const s = `scale(${scale})`;
+    elA.style.transform = s;
+    elB.style.transform = s;
+    elA.style.transformOrigin = 'center center';
+    elB.style.transformOrigin = 'center center';
+  }
+  applyZoom();
+
+  // عجلة الماوس للزووم
+  container.addEventListener('wheel', (e)=>{
+    if (!e.ctrlKey) return; // لتفادي التعارض مع تمرير الصفحة، استخدم Ctrl + Scroll
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    scale = Math.max(1, Math.min(3, +(scale + delta).toFixed(2)));
+    zoomRange.value = Math.round(scale*100);
+    applyZoom();
+  }, { passive:false });
+
+  // سلايدر الزووم + Reset
+  zoomRange.addEventListener('input', ()=>{
+    scale = Math.max(1, Math.min(3, zoomRange.value/100));
+    applyZoom();
+  });
+  zoomReset.addEventListener('click', ()=>{
+    scale = 1; zoomRange.value = 100; applyZoom();
+  });
+
+  // إعادة ضبط عند تغيير الحجم أو عند إظهار المودال
+  function onResize(){ sizeFallback(); setPercent(parseInt(range.value,10)); }
+  window.addEventListener('resize', onResize, { passive:true });
+
+  const modalEl = document.getElementById('compareModal');
+  if (modalEl){
+    modalEl.addEventListener('shown.bs.modal', ()=>{
+      onResize();
+    });
+    modalEl.addEventListener('hidden.bs.modal', ()=>{
+      window.removeEventListener('mousemove', moveDrag);
+      window.removeEventListener('mouseup', endDrag);
+      window.removeEventListener('touchmove', moveDrag);
+      window.removeEventListener('touchend', endDrag);
+      window.removeEventListener('resize', onResize);
+    }, { once:true });
+  }
 }
+
 
 // ================== الدليل المرئي (Intro.js) + Tooltips ==================
 function initTooltips(){
@@ -439,6 +579,24 @@ document.addEventListener('DOMContentLoaded', ()=>{
   if ('ResizeObserver' in window && calCard) {
     const ro = new ResizeObserver(() => fixCalendarLayout());
     ro.observe(calCard);
+  }
+
+  // تأكد أن شبكة المعرض تستخدم صفوف/أعمدة مرنة
+  const galleryGrid = document.getElementById('galleryGrid');
+  if (galleryGrid){
+    galleryGrid.classList.add('row', 'g-2', 'row-cols-2', 'row-cols-md-3', 'row-cols-lg-4');
+  }
+
+  // عند ظهور مودال المقارنة، أعِد ضبط النسبة/المقبض
+  const cmpModal = document.getElementById('compareModal');
+  if (cmpModal){
+    cmpModal.addEventListener('shown.bs.modal', ()=>{
+      const range = document.getElementById('cmpRange');
+      if (range) {
+        const ev = new Event('input');
+        range.dispatchEvent(ev);
+      }
+    });
   }
 
   refreshStats();
