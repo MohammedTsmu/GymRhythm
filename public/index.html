@@ -77,19 +77,11 @@
     .form-control, .form-select, .btn, .list-group-item{
       background:#fff; color:#111; border-color:var(--border);
     }
-    .list-group-item{ background: #0b1220; color: var(--text); } /* تُستبدل تلقائياً في الثيمات الفاتحة */
+    .list-group-item{ background: #0b1220; color: var(--text); }
     body.theme-offwhite .list-group-item{ background:#f3f4f6; color:#111; }
 
     /* FullCalendar عنوان */
     .fc .fc-toolbar-title{ font-size:1.1rem; }
-
-    /* Legend
-    .legend-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-inline-end:6px}
-    .legend-item{margin-inline-end:12px}
-    .legend-dot.on   { background: var(--event-on); }
-    .legend-dot.off  { background: var(--event-off); }
-    .legend-dot.done { background: var(--event-done); } */
-
 
     /* زر المساعدة العائم */
     #helpFab{
@@ -99,7 +91,7 @@
     }
 
     /* Intro.js (يمشي مع الثيم) */
-    .introjs-tooltip { background:var(--surface); color:var(--text); border:1px solid var(--border); }
+    .introjs-tooltip { background:var(--surface); color:var(--text); border:1px solid var(--border); direction: rtl; text-align: right; }
     .introjs-tooltipbuttons .introjs-button { background:var(--accent); color:#fff; border:0; }
     .introjs-button.introjs-prevbutton { background:#374151; }
     .introjs-helperLayer { box-shadow: 0 0 0 9999px rgba(0,0,0,.55); }
@@ -115,11 +107,19 @@
   <!-- اختيار الثيم -->
   <div class="ms-auto d-flex align-items-center gap-2">
     <label class="small me-1">السِّمة:</label>
+    <!-- <select id="themeSelect" class="form-select form-select-sm" style="width:180px">
+      <option value="theme-slate">Slate (داكن)</option>
+      <option value="theme-gray">رمادي Word</option>
+      <option value="theme-offwhite">أوف-وايت فاتح</option>
+    </select> -->
+
     <select id="themeSelect" class="form-select form-select-sm" style="width:180px">
       <option value="theme-slate">Slate (داكن)</option>
       <option value="theme-gray">رمادي Word</option>
       <option value="theme-offwhite">أوف-وايت فاتح</option>
+      <option value="theme-sepia">Sepia (مريح)</option> <!-- 👈 جديد -->
     </select>
+
   </div>
 </nav>
 
@@ -147,11 +147,6 @@
         <div class="col-lg-4 order-lg-1 order-2">
           <div class="card p-3" id="statsCard" data-intro="إحصاءات سريعة: عدد أيام On/Off وعدد الأيام المُنجزة آخر 30 يوم.">
             <h5 class="mb-2">إحصاءات</h5>
-            <!-- <div class="mb-2 small">
-              <span class="legend-item"><span class="legend-dot on"></span>On</span>
-              <span class="legend-item"><span class="legend-dot off"></span>Off</span>
-              <span class="legend-item"><span class="legend-dot done"></span>تم التنفيذ</span>
-            </div> -->
             <canvas id="statsCanvas" height="180"></canvas>
           </div>
         </div>
@@ -272,7 +267,9 @@
 <!-- زر المساعدة العائم -->
 <button id="helpFab" title="دليل سريع (F1)">؟</button>
 
-<script src="./app.js"></script>
+<!-- Bootstrap JS أولاً -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- ثم سكربت التطبيق -->
+<script src="./app.js"></script>
 </body>
 </html>

@@ -90,3 +90,34 @@ ul { padding-inline-start:20px; }
 #compareModal .modal-body {
   padding: 0.75rem;
 }
+
+:root { font-family: system-ui, "Segoe UI", Tahoma, sans-serif; }
+
+/* Sepia: دافئ ومريح للعين */
+body.theme-sepia{
+  --bg:      #f7f3e9;   /* ورق دافئ */
+  --surface: #fffaf2;   /* خلفيات خفيفة */
+  --card:    #fffdf7;   /* بطاقات أفتح */
+  --text:    #2a2a2a;   /* نص داكن واضح */
+  --muted:   #5b564c;   /* نص ثانوي */
+  --border:  #e7e0d3;   /* حدود ناعمة */
+  --accent:  #2f7d7b;   /* أخضر مزرق هادئ */
+
+  /* ألوان الأحداث */
+  --event-on:   #3f86d9;  /* أزرق أهدأ من الثيم الداكن */
+  --event-off:  #b6ad9f;  /* رمادي/بني باهت */
+  --event-done: #2e7d32;  /* أخضر مقروء */
+}
+
+/* تباين عناصر القائمة في الثيم الفاتح الدافئ */
+body.theme-sepia .list-group-item{ background:#fff7ec; color:#2a2a2a; border-color: var(--border); }
+
+/* تحسين القراءة قليلاً في الثيم السبيا فقط */
+body.theme-sepia { line-height: 1.6; }
+
+/* لون تبويب نشط يتناغم مع سبيا */
+body.theme-sepia .nav-link.active{ background:#efe7d8; border-color:var(--border); color:#1f1f1f; }
+
+/* تلوين أداة المساعدة/Intro بما يلائم الثيم */
+body.theme-sepia .introjs-tooltip { background:var(--surface); color:var(--text); border:1px solid var(--border); }
+body.theme-sepia #helpFab { background: var(--accent); }

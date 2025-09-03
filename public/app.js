@@ -359,12 +359,10 @@ async function buildCompareSlider(imgA, imgB){
   // حاول استخدام aspect-ratio، ولو ما اشتغل اضبط ارتفاع يدويًا
   try { container.style.aspectRatio = `${r1.w} / ${r1.h}`; } catch(_) {}
   function sizeFallback(){
-    // لو ما طبّق المتصفح aspect-ratio (أحيانًا ببعض الثيمات/الإطارات) نضبط ارتفاع يدويًا
     const rect = container.getBoundingClientRect();
     const expectedH = Math.max(220, Math.round(rect.width / ratio)); // حدّ أدنى 220px
     container.style.height = expectedH + 'px';
   }
-  // طبّق fallback دائمًا لضمان الملاءمة
   sizeFallback();
 
   // سحب/لمس للسلايدر
@@ -405,9 +403,9 @@ async function buildCompareSlider(imgA, imgB){
   }
   applyZoom();
 
-  // عجلة الماوس للزووم
+  // عجلة الماوس للزووم (Ctrl + Scroll)
   container.addEventListener('wheel', (e)=>{
-    if (!e.ctrlKey) return; // لتفادي التعارض مع تمرير الصفحة، استخدم Ctrl + Scroll
+    if (!e.ctrlKey) return;
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     scale = Math.max(1, Math.min(3, +(scale + delta).toFixed(2)));
@@ -430,9 +428,7 @@ async function buildCompareSlider(imgA, imgB){
 
   const modalEl = document.getElementById('compareModal');
   if (modalEl){
-    modalEl.addEventListener('shown.bs.modal', ()=>{
-      onResize();
-    });
+    modalEl.addEventListener('shown.bs.modal', ()=>{ onResize(); });
     modalEl.addEventListener('hidden.bs.modal', ()=>{
       window.removeEventListener('mousemove', moveDrag);
       window.removeEventListener('mouseup', endDrag);
@@ -443,78 +439,115 @@ async function buildCompareSlider(imgA, imgB){
   }
 }
 
-
 // ================== الدليل المرئي (Intro.js) + Tooltips ==================
 function initTooltips(){
   const tList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
   tList.forEach(el => new bootstrap.Tooltip(el));
 }
 
+// ===== Helpers للشرح =====
+function getEl(sel){ try { return document.querySelector(sel) || null; } catch { return null; } }
+function introAvailable(){ return (typeof introJs === 'function'); }
+
+// جولة تعليمية مرِنة + فلترة العناصر غير الموجودة
 function startTour(){
-  const steps = [
-    { element: document.querySelector('#mainTabs'),
-      intro: 'هنا تتنقل بين لوحة المتابعة، الإجراءات السريعة، ومعرض التقدّم.',
-      position: 'bottom' },
-    { element: document.querySelector('#calendarCard'),
-      intro: 'التقويم يعرض الخطة. انقر على يوم لضبطه، أو على الحدث للتبديل إلى "تم التنفيذ" ✓.',
-      position: 'right' },
-    { element: document.querySelector('#statsCard'),
-      intro: 'إحصاءات سريعة لآخر 30 يوم: On / Off / تم التنفيذ.',
-      position: 'left' },
-    { element: document.querySelector('#genCard'),
-      intro: 'ولّد خطة الشهر (On/Off). اختر السنة/الشهر ثم "توليد الجدول".',
-      position: 'bottom' },
-    { element: document.querySelector('#quickLogCard'),
-      intro: 'سجّل إنجاز يوم معيّن بسرعة بدون فتح التقويم.',
-      position: 'bottom' },
-    { element: document.querySelector('#uploadCard'),
-      intro: 'ارفع صورة التقدّم لتظهر في المعرض ويمكن ربطها بالمجموعات أو مقارنتها.',
-      position: 'bottom' },
-    { element: document.querySelector('#groupsCard'),
-      intro: 'أنشئ مجموعات (Bulk, Cut...). اسحب صورة وأسقطها على المجموعة لإسنادها.',
-      position: 'right' },
-    { element: document.querySelector('#galleryCard'),
-      intro: 'علّم صورتين (Checkbox) ثم "مقارنة صورتين" لفتح سلايدر قبل/بعد.',
-      position: 'left' }
+  if (!introAvailable()) { alert('ميزة الشرح غير مفعلة: تأكد من تضمين Intro.js'); return; }
+
+  const rawSteps = [
+    { sel:'#mainTabs',      intro:'هنا تتنقل بين لوحة المتابعة، الإجراءات السريعة، ومعرض التقدّم.', pos:'bottom' },
+    { sel:'#calendarCard',  intro:'التقويم يعرض الخطة. انقر على يوم لضبطه، أو على الحدث للتبديل إلى "تم التنفيذ" ✓.', pos:'right' },
+    { sel:'#statsCard',     intro:'إحصاءات سريعة: On / Off / تم التنفيذ.', pos:'left' },
+    { sel:'#genCard',       intro:'ولّد خطة الشهر (On/Off).', pos:'bottom' },
+    { sel:'#quickLogCard',  intro:'سجّل إنجاز يوم معيّن بسرعة.', pos:'bottom' },
+    { sel:'#uploadCard',    intro:'ارفع صورة التقدّم لتظهر في المعرض.', pos:'bottom' },
+    { sel:'#groupsCard',    intro:'أنشئ مجموعات واسحب الصورة عليها لإسنادها.', pos:'right' },
+    { sel:'#galleryCard',   intro:'علّم صورتين ثم "مقارنة صورتين" لفتح السلايدر.', pos:'left' }
   ];
+
+  const steps = rawSteps.map(s => {
+    const el = getEl(s.sel);
+    return el ? { element: el, intro: s.intro, position: s.pos } : null;
+  }).filter(Boolean);
+
+  if (!steps.length){
+    console.warn('لا يوجد عناصر صالحة للجولة الآن.');
+    alert('تعذّر بدء الشرح الآن. تأكد أن الصفحة جاهزة ثم جرّب من جديد.');
+    return;
+  }
 
   const tour = introJs();
   tour.setOptions({
-    steps, rtl:true,
+    steps, rtl: true,
     nextLabel:'التالي', prevLabel:'السابق', doneLabel:'تم',
     scrollToElement:true, scrollTo:'element', showProgress:true, showBullets:true
   });
 
-  // بدّل التبويب حسب موضع العنصر
+  // بدّل التبويب حسب العنصر الهدف
   tour.onbeforechange(function(targetEl){
     if (!targetEl) return;
-    const paneQuick   = document.querySelector('#pane-quick');
-    const paneGallery = document.querySelector('#pane-gallery');
-    if      (paneQuick.contains(targetEl))   new bootstrap.Tab(document.querySelector('#tab-quick')).show();
-    else if (paneGallery.contains(targetEl)) new bootstrap.Tab(document.querySelector('#tab-gallery')).show();
-    else                                     new bootstrap.Tab(document.querySelector('#tab-dashboard')).show();
-    targetEl.scrollIntoView({ block:'center', behavior:'smooth' });
+    const paneQuick   = getEl('#pane-quick');
+    const paneGallery = getEl('#pane-gallery');
+    const tabDash     = getEl('#tab-dashboard');
+    const tabQuick    = getEl('#tab-quick');
+    const tabGallery  = getEl('#tab-gallery');
+
+    if      (paneQuick && paneQuick.contains(targetEl)   && tabQuick)   new bootstrap.Tab(tabQuick).show();
+    else if (paneGallery && paneGallery.contains(targetEl) && tabGallery) new bootstrap.Tab(tabGallery).show();
+    else if (tabDash) new bootstrap.Tab(tabDash).show();
+
+    try { targetEl.scrollIntoView({ block:'center', behavior:'smooth' }); } catch {}
   });
 
   tour.start();
 }
 
+// تشغيل تلقائي ذكي: ينتظر العناصر ثم يبدأ، مع سقف محاولات
 function maybeAutoTour(){
-  try{
-    const k='gr_seen_tour_v2';
-    if(!localStorage.getItem(k)){ setTimeout(()=>startTour(), 400); localStorage.setItem(k,'1'); }
-  }catch(e){}
+  const STORAGE_KEY = 'gr_seen_tour_v3';
+  if (localStorage.getItem(STORAGE_KEY)) return;
+
+  let tries = 0, maxTries = 10;
+
+  const tick = () => {
+    tries++;
+    const ready = introAvailable() && getEl('#calendarCard') && getEl('#galleryCard');
+    if (ready){
+      setTimeout(()=>{
+        try { startTour(); localStorage.setItem(STORAGE_KEY,'1'); }
+        catch(e){ console.warn('فشل بدء الجولة:', e); }
+      }, 250);
+      return;
+    }
+    if (tries < maxTries) setTimeout(tick, 300);
+    else console.warn('فشل تهيئة الجولة بعد محاولات متعددة.');
+  };
+
+  setTimeout(tick, 400);
 }
 
 // ================== الثيمات ==================
+// function applyTheme(cls){
+//   document.body.classList.remove('theme-slate','theme-gray','theme-offwhite');
+//   document.body.classList.add(cls);
+//   localStorage.setItem('gr_theme', cls);
+//   refreshThemeVars();        // تحديث ألوان الثيم
+//   calendar && calendar.refetchEvents();
+//   refreshStats();
+// }
+
 function applyTheme(cls){
-  document.body.classList.remove('theme-slate','theme-gray','theme-offwhite');
+  // احذف أي كلاس يبدأ بـ theme-
+  document.body.classList.forEach(c => {
+    if (c.startsWith('theme-')) document.body.classList.remove(c);
+  });
   document.body.classList.add(cls);
   localStorage.setItem('gr_theme', cls);
   refreshThemeVars();        // تحديث ألوان الثيم
   calendar && calendar.refetchEvents();
   refreshStats();
 }
+
+
 function initTheme(){
   const sel = document.getElementById('themeSelect');
   const saved = localStorage.getItem('gr_theme') || 'theme-slate';
@@ -598,6 +631,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }
     });
   }
+
+  // زر المساعدة العائم + F1 لتشغيل الشرح
+  document.getElementById('helpFab')?.addEventListener('click', startTour);
+  window.addEventListener('keydown', (e)=>{
+    if (e.key === 'F1') { e.preventDefault(); startTour(); }
+  });
 
   refreshStats();
   loadGroups();
