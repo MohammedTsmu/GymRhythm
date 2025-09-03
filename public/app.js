@@ -100,6 +100,18 @@ function wireQuickLog(){
     if (json.ok) { calendar.refetchEvents(); refreshStats(); }
   });
 }
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  const d = document.getElementById('logDate');
+  if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
+});
+
+function showToast(msg){
+  const el = document.getElementById('okToastMsg');
+  el.textContent = msg;
+  new bootstrap.Toast(document.getElementById('okToast')).show();
+}
+
 function wirePhotoUpload(){
   const btn = document.getElementById('btnSavePhoto');
   if (!btn) return;
@@ -347,3 +359,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   loadGalleryByGroup();
   maybeAutoTour();
 });
+
+
+
