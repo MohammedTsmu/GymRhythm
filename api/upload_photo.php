@@ -1,15 +1,17 @@
 <?php
 require __DIR__ . '/config.php';
 
-// تأكد من إعدادات php.ini: upload_max_filesize, post_max_size, إلخ (إن لزم) 
-// ثم استخدم move_uploaded_file (الطريقة الصحيحة لملفات الرفع).
-// مراجع رسمية لآلية الرفع وسلوك move_uploaded_file: 
-// - PHP manual (features.file-upload + move_uploaded_file)  :contentReference[oaicite:6]{index=6}
-
+/* متطلبات PHP الرسمية للرفع:
+   - نقرأ $_FILES
+   - نتحقق من UPLOAD_ERR_OK
+   - ننقل الملف بـ move_uploaded_file إلى مجلد داخل الموقع
+   - نُدخل المسار في جدول Photos
+*/
 if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
   echo json_encode(['ok'=>false,'msg'=>'upload failed','code'=>$_FILES['photo']['error'] ?? -1]);
   exit;
 }
+
 $date = $_POST['date'] ?? date('Y-m-d');
 $note = trim($_POST['note'] ?? 'progress');
 
