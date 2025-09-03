@@ -1,7 +1,7 @@
-// ================== الإعدادات ==================
+// ================== إعداد مسارات الـAPI ==================
 const API = (p) => `../api/${p}`;
 
-// ================== Utilities ==================
+// ================== أدوات مساعدة ==================
 async function postJSON(url, obj) {
   const res = await fetch(url, {
     method:'POST',
@@ -14,10 +14,15 @@ async function postForm(url, data) {
   const res = await fetch(url, { method:'POST', body: data });
   return await res.json();
 }
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
 function colorFor(plan, done){
-  if (done) return '#22c55e';
-  if (plan==='Off') return '#64748b';
-  return '#60a5fa';
+  const ON   = cssVar('--event-on')   || '#60a5fa';
+  const OFF  = cssVar('--event-off')  || '#64748b';
+  const DONE = cssVar('--event-done') || '#22c55e';
+  if (done) return DONE;
+  if (plan==='Off') return OFF;
+  return ON;
 }
 
 // ================== Calendar/Data ==================
@@ -34,12 +39,11 @@ async function loadCalendarEvents(info, success, failure){
       start: e.date,
       allDay: true,
       backgroundColor: colorFor(e.plan, e.done),
-      borderColor: colorFor(e.plan, e.done)
+      borderColor:     colorFor(e.plan, e.done)
     }));
     success(events);
   } catch (e) { failure && failure(e.message); }
 }
-
 
 async function refreshStats(){
   try {
@@ -48,24 +52,22 @@ async function refreshStats(){
     if (!json.ok) return;
     const ctx = document.getElementById('statsCanvas');
     if (statsChart) statsChart.destroy();
+    const colors = [cssVar('--event-on')||'#60a5fa', cssVar('--event-off')||'#64748b', cssVar('--event-done')||'#22c55e'];
     statsChart = new Chart(ctx, {
       type: 'doughnut',
       data: {
         labels: ['On','Off','تمّ التنفيذ'],
         datasets: [{
           data: [json.on, json.off, json.done],
-          backgroundColor: ['#60a5fa','#64748b','#22c55e'],
-          borderColor: ['#60a5fa','#64748b','#22c55e'],
+          backgroundColor: colors,
+          borderColor: colors,
           borderWidth: 1
         }]
       },
-      options: {
-        cutout: '60%' // منظر حلقي أنظف (اختياري)
-      }
+      options: { cutout: '60%' }
     });
   } catch(err){ console.warn('stats error', err); }
 }
-
 
 function openDayModal(dateStr, plan){
   document.getElementById('dayDate').value = dateStr;
@@ -73,7 +75,7 @@ function openDayModal(dateStr, plan){
   new bootstrap.Modal('#dayModal').show();
 }
 
-// ================== Quick actions ==================
+// ================== إجراءات سريعة ==================
 function wireGenerate(){
   const btn = document.getElementById('btnGenerate');
   if (!btn) return;
@@ -126,7 +128,6 @@ async function loadGroups(){
 
   const all = document.createElement('li');
   all.className = 'list-group-item';
-  all.style.background='#0b1220'; all.style.color='#e2e8f0';
   all.textContent = 'الكل';
   all.onclick = ()=>{ currentGroup=null; loadGalleryByGroup(); };
   ul.appendChild(all);
@@ -134,7 +135,6 @@ async function loadGroups(){
   (json.data||[]).forEach(g=>{
     const li = document.createElement('li');
     li.className = 'list-group-item d-flex justify-content-between align-items-center';
-    li.style.background = '#0b1220'; li.style.color='#e2e8f0';
     li.textContent = g.name;
     li.onclick = ()=>{ currentGroup = g.id; loadGalleryByGroup(); };
     ul.appendChild(li);
@@ -167,7 +167,7 @@ async function loadGalleryByGroup(){
     const col = document.createElement('div');
     col.className = 'col-6 col-md-4 col-lg-3';
     col.innerHTML = `
-      <div class="card p-1" style="background:#111827">
+      <div class="card p-1" style="background:var(--surface);border:1px solid var(--border)">
         <img src="../${item.path}" class="img-fluid rounded" alt="" draggable="true" data-photo-id="${item.id}">
         <div class="d-flex justify-content-between align-items-center mt-1">
           <div class="form-check">
@@ -223,98 +223,79 @@ function buildCompareSlider(imgA, imgB){
   range.addEventListener('input', ()=> { mask.style.width = range.value + '%'; });
 }
 
-// ================== Guide (Intro.js) + Tooltips ==================
+// ================== الدليل المرئي (Intro.js) + Tooltips ==================
 function initTooltips(){
-  // Bootstrap tooltips
   const tList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
   tList.forEach(el => new bootstrap.Tooltip(el));
 }
-
-
 function startTour(){
   const steps = [
     { element: document.querySelector('#mainTabs'),
       intro: 'هنا تتنقل بين لوحة المتابعة، الإجراءات السريعة، ومعرض التقدّم.',
       position: 'bottom' },
-
     { element: document.querySelector('#calendarCard'),
       intro: 'التقويم يعرض الخطة. انقر على يوم لضبطه، أو على الحدث للتبديل إلى "تم التنفيذ" ✓.',
       position: 'right' },
-
     { element: document.querySelector('#statsCard'),
       intro: 'إحصاءات سريعة لآخر 30 يوم: On / Off / تم التنفيذ.',
       position: 'left' },
-
-    // نتحول لتبويب "إجراءات سريعة"
     { element: document.querySelector('#genCard'),
       intro: 'ولّد خطة الشهر (On/Off). اختر السنة/الشهر ثم "توليد الجدول".',
       position: 'bottom' },
-
     { element: document.querySelector('#quickLogCard'),
       intro: 'سجّل إنجاز يوم معيّن بسرعة بدون فتح التقويم.',
       position: 'bottom' },
-
     { element: document.querySelector('#uploadCard'),
       intro: 'ارفع صورة التقدّم لتظهر في المعرض ويمكن ربطها بالمجموعات أو مقارنتها.',
       position: 'bottom' },
-
-    // نتحول لتبويب "معرض التقدّم"
     { element: document.querySelector('#groupsCard'),
       intro: 'أنشئ مجموعات (Bulk, Cut...). اسحب صورة وأسقطها على المجموعة لإسنادها.',
       position: 'right' },
-
     { element: document.querySelector('#galleryCard'),
       intro: 'علّم صورتين (Checkbox) ثم "مقارنة صورتين" لفتح سلايدر قبل/بعد.',
       position: 'left' }
   ];
-
   const tour = introJs();
-  tour.setOptions({
-    steps,
-    rtl: true,
-    nextLabel: 'التالي', prevLabel: 'السابق', doneLabel: 'تم',
-    scrollToElement: true, scrollTo: 'element', // ضمن نطاق العنصر
-    showProgress: true, showBullets: true, autoPosition: true
-  });
-
-  // قبل كل خطوة: بدّل التبويب الصحيح إذا كان العنصر فيها
+  tour.setOptions({ steps, rtl:true, nextLabel:'التالي', prevLabel:'السابق', doneLabel:'تم',
+                    scrollToElement:true, scrollTo:'element', showProgress:true, showBullets:true });
   tour.onbeforechange(function(targetEl){
     if (!targetEl) return;
-    const paneQuick = document.querySelector('#pane-quick');
+    const paneQuick   = document.querySelector('#pane-quick');
     const paneGallery = document.querySelector('#pane-gallery');
-    const tabQuick = document.querySelector('#tab-quick');
-    const tabGallery = document.querySelector('#tab-gallery');
-
-    if (paneQuick.contains(targetEl)) {
-      new bootstrap.Tab(tabQuick).show();
-    } else if (paneGallery.contains(targetEl)) {
-      new bootstrap.Tab(tabGallery).show();
-    } else {
-      // تبويب لوحة المتابعة
-      new bootstrap.Tab(document.querySelector('#tab-dashboard')).show();
-    }
-    // نتأكد العنصر داخل العرض
-    targetEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if      (paneQuick.contains(targetEl))   new bootstrap.Tab(document.querySelector('#tab-quick')).show();
+    else if (paneGallery.contains(targetEl)) new bootstrap.Tab(document.querySelector('#tab-gallery')).show();
+    else                                     new bootstrap.Tab(document.querySelector('#tab-dashboard')).show();
+    targetEl.scrollIntoView({ block:'center', behavior:'smooth' });
   });
-
   tour.start();
 }
-
-
 function maybeAutoTour(){
-  try{
-    const k = 'gr_seen_tour_v1';
-    if (!localStorage.getItem(k)){
-      setTimeout(()=> startTour(), 400);
-      localStorage.setItem(k, '1');
-    }
-  }catch(e){}
+  try{ const k='gr_seen_tour_v2'; if(!localStorage.getItem(k)){ setTimeout(()=>startTour(), 400); localStorage.setItem(k,'1'); } }catch(e){}
+}
+
+// ================== الثيمات ==================
+function applyTheme(cls){
+  document.body.classList.remove('theme-slate','theme-gray','theme-offwhite');
+  document.body.classList.add(cls);
+  localStorage.setItem('gr_theme', cls);
+  // حدّث الألوان الحيّة
+  calendar && calendar.refetchEvents();
+  refreshStats();
+}
+function initTheme(){
+  const sel = document.getElementById('themeSelect');
+  const saved = localStorage.getItem('gr_theme') || 'theme-slate';
+  document.body.classList.add(saved);
+  sel.value = saved;
+  sel.addEventListener('change', ()=> applyTheme(sel.value));
 }
 
 // ================== Init ==================
 document.addEventListener('DOMContentLoaded', ()=>{
-  wireGenerate(); wireQuickLog(); wirePhotoUpload();
+  initTheme();
+  initTooltips();
 
+  // Calendar
   calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
     initialView: 'dayGridMonth',
     firstDay: 6, locale: 'ar', height: 'auto',
@@ -328,16 +309,21 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
   calendar.render();
 
+  // Quick actions + Upload
+  wireGenerate(); wireQuickLog(); wirePhotoUpload();
+
+  // Groups & gallery
   document.getElementById('btnAddGroup')?.addEventListener('click', addGroup);
   document.getElementById('btnCompare')?.addEventListener('click', ()=>{
     if (selectedForCompare.length!==2) return;
     buildCompareSlider(selectedForCompare[0], selectedForCompare[1]);
     new bootstrap.Modal('#compareModal').show();
   });
+
+  // Help
   document.getElementById('helpFab')?.addEventListener('click', startTour);
   document.addEventListener('keydown', (e)=>{ if(e.key==='F1'){ e.preventDefault(); startTour(); } });
 
-  initTooltips();
   refreshStats();
   loadGroups();
   loadGalleryByGroup();

@@ -20,38 +20,106 @@
   <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 
   <style>
-    body{background:#0f172a;color:#e2e8f0}
-    .navbar{background:#111827}
-    .card{background:#1f2937;color:#e2e8f0;border-radius:14px}
-    .fc .fc-toolbar-title{font-size:1.1rem}
-    .nav-link{color:#e2e8f0}
-    .nav-link.active{background:#374151}
+    /* ============ لوح الألوان عبر متغيرات CSS ============ */
+    :root{
+      /* ألوان الثيم الافتراضي (Slate داكن) */
+      --bg:        #0f172a;
+      --surface:   #111827;
+      --card:      #1f2937;
+      --text:      #e2e8f0;
+      --muted:     #94a3b8;
+      --border:    #243041;
+      --accent:    #2563eb;
+
+      /* ألوان الأحداث/الرسم */
+      --event-on:   #60a5fa;  /* أزرق */
+      --event-off:  #64748b;  /* رمادي */
+      --event-done: #22c55e;  /* أخضر */
+    }
+
+    /* رمادي Word (مستوحى من "Dark Gray" في أوفيس) */
+    body.theme-gray{
+      --bg:      #2b2b2b;
+      --surface: #2f2f2f;
+      --card:    #3a3a3a;
+      --text:    #f0f0f0;
+      --muted:   #cfcfcf;
+      --border:  #4a4a4a;
+      --accent:  #2ea3ff;
+
+      --event-on:   #7db7ff;
+      --event-off:  #8a8f98;
+      --event-done: #34d399;
+    }
+
+    /* أوف-وايت فاتح هادئ */
+    body.theme-offwhite{
+      --bg:      #f5f6f7;
+      --surface: #ffffff;
+      --card:    #ffffff;
+      --text:    #111827;
+      --muted:   #4b5563;
+      --border:  #e5e7eb;
+      --accent:  #2563eb;
+
+      --event-on:   #3b82f6;
+      --event-off:  #9ca3af;
+      --event-done: #10b981;
+    }
+
+    /* ============ تطبيق الألوان ============ */
+    html, body{ height:100%; }
+    body{ background:var(--bg); color:var(--text); }
+    .navbar{ background:var(--surface); }
+    .card{ background:var(--card); color:var(--text); border-radius:14px; border:1px solid var(--border); }
+    .nav-link{ color:var(--text); }
+    .nav-link.active{ background:#374151; border-color:var(--border); }
+    .form-control, .form-select, .btn, .list-group-item{
+      background:#fff; color:#111; border-color:var(--border);
+    }
+    .list-group-item{ background: #0b1220; color: var(--text); } /* تُستبدل تلقائياً في الثيمات الفاتحة */
+    body.theme-offwhite .list-group-item{ background:#f3f4f6; color:#111; }
+
+    /* FullCalendar عنوان */
+    .fc .fc-toolbar-title{ font-size:1.1rem; }
+
+    /* Legend */
+    .legend-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-inline-end:6px}
+    .legend-item{margin-inline-end:12px}
+    .legend-dot.on   { background: var(--event-on); }
+    .legend-dot.off  { background: var(--event-off); }
+    .legend-dot.done { background: var(--event-done); }
+
     /* زر المساعدة العائم */
     #helpFab{
       position: fixed; inset-inline-end: 16px; inset-block-end: 16px;
       z-index: 1055; border-radius: 999px; padding: 10px 14px;
-      background:#2563eb; color:#fff; border:0; box-shadow: 0 6px 20px rgba(0,0,0,.35);
+      background:var(--accent); color:#fff; border:0; box-shadow: 0 6px 20px rgba(0,0,0,.35);
     }
-    /* Legend شريط ألوان صغير */
-    .legend-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-inline-end:6px}
-    .legend-item{margin-inline-end:12px}
 
-
-      /* Intro.js - ثيم داكن واضح */
-  .introjs-tooltip { background:#111827; color:#e2e8f0; border:1px solid #333; }
-  .introjs-tooltip h1,.introjs-tooltip h2,.introjs-tooltip h3,.introjs-tooltip p { color:#e2e8f0; }
-  .introjs-tooltipbuttons .introjs-button { background:#2563eb; color:#fff; border:0; }
-  .introjs-button.introjs-prevbutton { background:#374151; }
-  .introjs-helperLayer { box-shadow: 0 0 0 9999px rgba(0,0,0,.65); }
-  .introjs-overlay { background: rgba(0,0,0,.65); }
-  .introjs-progress { background:#374151; }
-  .introjs-progressbar { background:#2563eb !important; }
-
+    /* Intro.js (يمشي مع الثيم) */
+    .introjs-tooltip { background:var(--surface); color:var(--text); border:1px solid var(--border); }
+    .introjs-tooltipbuttons .introjs-button { background:var(--accent); color:#fff; border:0; }
+    .introjs-button.introjs-prevbutton { background:#374151; }
+    .introjs-helperLayer { box-shadow: 0 0 0 9999px rgba(0,0,0,.55); }
+    .introjs-overlay { background: rgba(0,0,0,.55); }
+    .introjs-progress { background:#374151; }
+    .introjs-progressbar { background:var(--accent) !important; }
   </style>
 </head>
-<body>
+<body class="theme-slate">
 <nav class="navbar navbar-dark px-3">
   <span class="navbar-brand mb-0 h1">GymRhythm</span>
+
+  <!-- اختيار الثيم -->
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <label class="small me-1">السِّمة:</label>
+    <select id="themeSelect" class="form-select form-select-sm" style="width:180px">
+      <option value="theme-slate">Slate (داكن)</option>
+      <option value="theme-gray">رمادي Word</option>
+      <option value="theme-offwhite">أوف-وايت فاتح</option>
+    </select>
+  </div>
 </nav>
 
 <div class="container my-3">
@@ -59,35 +127,29 @@
   <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist" data-intro="هنا تتنقل بين لوحة المتابعة، الإجراءات السريعة، ومعرض التقدّم.">
     <li class="nav-item" role="presentation">
       <button class="nav-link active" id="tab-dashboard" data-bs-toggle="tab"
-              data-bs-target="#pane-dashboard" type="button" role="tab">
-        لوحة المتابعة
-      </button>
+              data-bs-target="#pane-dashboard" type="button" role="tab">لوحة المتابعة</button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="tab-quick" data-bs-toggle="tab"
-              data-bs-target="#pane-quick" type="button" role="tab">
-        إجراءات سريعة
-      </button>
+              data-bs-target="#pane-quick" type="button" role="tab">إجراءات سريعة</button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="tab-gallery" data-bs-toggle="tab"
-              data-bs-target="#pane-gallery" type="button" role="tab">
-        معرض التقدّم
-      </button>
+              data-bs-target="#pane-gallery" type="button" role="tab">معرض التقدّم</button>
     </li>
   </ul>
 
   <div class="tab-content">
-    <!-- لوحة المتابعة: التقويم + الإحصاءات -->
+    <!-- لوحة المتابعة -->
     <div class="tab-pane fade show active" id="pane-dashboard" role="tabpanel">
       <div class="row g-3">
         <div class="col-lg-4 order-lg-1 order-2">
           <div class="card p-3" id="statsCard" data-intro="إحصاءات سريعة: عدد أيام On/Off وعدد الأيام المُنجزة آخر 30 يوم.">
             <h5 class="mb-2">إحصاءات</h5>
             <div class="mb-2 small">
-              <span class="legend-item"><span class="legend-dot" style="background:#60a5fa"></span>On</span>
-              <span class="legend-item"><span class="legend-dot" style="background:#64748b"></span>Off</span>
-              <span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span>تم التنفيذ</span>
+              <span class="legend-item"><span class="legend-dot on"></span>On</span>
+              <span class="legend-item"><span class="legend-dot off"></span>Off</span>
+              <span class="legend-item"><span class="legend-dot done"></span>تم التنفيذ</span>
             </div>
             <canvas id="statsCanvas" height="180"></canvas>
           </div>
@@ -105,8 +167,7 @@
     <div class="tab-pane fade" id="pane-quick" role="tabpanel">
       <div class="row g-3">
         <div class="col-lg-6">
-          <div class="card p-3 mb-3" id="genCard"
-               data-intro="ولّد خطة الشهر (On/Off بالتناوب). اختر السنة والشهر ثم اضغط توليد.">
+          <div class="card p-3 mb-3" id="genCard" data-intro="ولّد خطة الشهر (On/Off بالتناوب).">
             <h5 class="mb-2">توليد شهر On/Off</h5>
             <div class="row g-2">
               <div class="col-4"><input id="year" class="form-control form-control-sm" type="number" value="2025"></div>
@@ -120,8 +181,7 @@
             <div id="genMsg" class="small mt-2"></div>
           </div>
 
-          <div class="card p-3" id="quickLogCard"
-               data-intro="سجّل إنجاز يوم معيّن بسرعة (حتى بدون فتح التقويم).">
+          <div class="card p-3" id="quickLogCard" data-intro="سجّل إنجاز يوم بسرعة.">
             <h5 class="mb-2">تسجيل تنفيذ اليوم</h5>
             <div class="row g-2">
               <div class="col-6"><input id="logDate" type="date" class="form-control form-control-sm"></div>
@@ -133,8 +193,7 @@
         </div>
 
         <div class="col-lg-6">
-          <div class="card p-3" id="uploadCard"
-               data-intro="ارفع صورة تقدّم. ستظهر في المعرض ويمكنك ربطها بمجموعة أو مقارنتها.">
+          <div class="card p-3" id="uploadCard" data-intro="ارفع صورة تقدّم.">
             <h5 class="mb-2">رفع صورة التقدّم</h5>
             <input id="photoFile" type="file" accept="image/*" class="form-control form-control-sm">
             <button id="btnSavePhoto" class="btn btn-light btn-sm mt-2">حفظ الصورة</button>
@@ -148,8 +207,7 @@
     <div class="tab-pane fade" id="pane-gallery" role="tabpanel">
       <div class="row g-3">
         <div class="col-lg-3">
-          <div class="card p-3" id="groupsCard"
-               data-intro="أنشئ مجموعات (مثلاً Bulk 2025). اسحب صورة وأسقطها على المجموعة لإسنادها.">
+          <div class="card p-3" id="groupsCard" data-intro="أنشئ مجموعات (Bulk/Cut...). اسحب صورة على المجموعة لإسنادها.">
             <h6 class="mb-2">المجموعات</h6>
             <div class="input-group input-group-sm mb-2">
               <input id="grpName" class="form-control" placeholder="اسم المجموعة">
@@ -159,8 +217,7 @@
           </div>
         </div>
         <div class="col-lg-9">
-          <div class="card p-3" id="galleryCard"
-               data-intro="اختر صورتين للمقارنة (Checkbox) ثم اضغط &quot;مقارنة صورتين&quot;. اسحب الصور نحو المجموعات للإسناد.">
+          <div class="card p-3" id="galleryCard" data-intro="اختر صورتين (Checkbox) ثم &quot;مقارنة صورتين&quot;.">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <h6 class="m-0">الصور</h6>
               <button id="btnCompare" class="btn btn-outline-light btn-sm" disabled>مقارنة صورتين</button>
@@ -176,7 +233,7 @@
 <!-- Modal: ضبط يوم -->
 <div class="modal fade" id="dayModal" tabindex="-1">
   <div class="modal-dialog">
-    <div class="modal-content" style="background:#1f2937;color:#e2e8f0">
+    <div class="modal-content" style="background:var(--card);color:var(--text);border:1px solid var(--border)">
       <div class="modal-header"><h5 class="modal-title">ضبط اليوم</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
@@ -201,7 +258,7 @@
 <!-- Modal: مقارنة قبل/بعد -->
 <div class="modal fade" id="compareModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content" style="background:#1f2937;color:#e2e8f0">
+    <div class="modal-content" style="background:var(--card);color:var(--text);border:1px solid var(--border)">
       <div class="modal-header"><h5 class="modal-title">مقارنة قبل/بعد</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
@@ -211,7 +268,7 @@
   </div>
 </div>
 
-<!-- زر المساعدة العائم لتشغيل الجولة -->
+<!-- زر المساعدة العائم -->
 <button id="helpFab" title="دليل سريع (F1)">؟</button>
 
 <script src="./app.js"></script>
