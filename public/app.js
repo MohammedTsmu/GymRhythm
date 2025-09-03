@@ -1,7 +1,7 @@
 // ================== إعداد مسارات الـAPI ==================
 const API = (p) => `../api/${p}`;
 
-// ================== أدوات مساعدة ==================
+// ================== Helpers ==================
 async function postJSON(url, obj) {
   const res = await fetch(url, {
     method:'POST',
@@ -23,6 +23,13 @@ function colorFor(plan, done){
   if (done) return DONE;
   if (plan==='Off') return OFF;
   return ON;
+}
+
+// يجبر فول كالندر يعيد حساب الحجم بعد تغيّر الحاوية/التبويب
+function fixCalendarLayout() {
+  requestAnimationFrame(() => {
+    try { calendar.updateSize(); } catch {}
+  });
 }
 
 // ================== Calendar/Data ==================
@@ -52,7 +59,11 @@ async function refreshStats(){
     if (!json.ok) return;
     const ctx = document.getElementById('statsCanvas');
     if (statsChart) statsChart.destroy();
-    const colors = [cssVar('--event-on')||'#60a5fa', cssVar('--event-off')||'#64748b', cssVar('--event-done')||'#22c55e'];
+    const colors = [
+      cssVar('--event-on')   || '#60a5fa',
+      cssVar('--event-off')  || '#64748b',
+      cssVar('--event-done') || '#22c55e'
+    ];
     statsChart = new Chart(ctx, {
       type: 'doughnut',
       data: {
@@ -75,7 +86,7 @@ function openDayModal(dateStr, plan){
   new bootstrap.Modal('#dayModal').show();
 }
 
-// ================== إجراءات سريعة ==================
+// ================== Quick actions ==================
 function wireGenerate(){
   const btn = document.getElementById('btnGenerate');
   if (!btn) return;
@@ -85,31 +96,27 @@ function wireGenerate(){
     const startOn = document.getElementById('startOn').checked ? 1 : 0;
     const json = await postJSON(API('generate_onoff.php'), {year:y, month:m, startOn});
     document.getElementById('genMsg').textContent = json.ok ? 'تم ✅' : ('خطأ: ' + (json.msg||''));
-    calendar.refetchEvents(); refreshStats();
+    calendar.refetchEvents();
+    refreshStats();
+    fixCalendarLayout(); // تصحيح تمدّد التقويم بعد التوليد
   });
 }
+
 function wireQuickLog(){
   const btn = document.getElementById('btnLog');
   if (!btn) return;
+  // تعبئة تاريخ اليوم افتراضيًا إن فارغ
+  const d = document.getElementById('logDate');
+  if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
+
   btn.addEventListener('click', async ()=>{
     const d = document.getElementById('logDate').value;
     const note = document.getElementById('logNote').value;
     if (!d) return alert('اختر التاريخ');
     const json = await postJSON(API('log_day.php'), { date:d, note });
     document.getElementById('logMsg').textContent = json.ok ? 'تم التسجيل ✓' : ('خطأ: ' + (json.msg||''));
-    if (json.ok) { calendar.refetchEvents(); refreshStats(); }
+    if (json.ok) { calendar.refetchEvents(); refreshStats(); fixCalendarLayout(); }
   });
-}
-
-document.addEventListener('DOMContentLoaded', ()=>{
-  const d = document.getElementById('logDate');
-  if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
-});
-
-function showToast(msg){
-  const el = document.getElementById('okToastMsg');
-  el.textContent = msg;
-  new bootstrap.Toast(document.getElementById('okToast')).show();
 }
 
 function wirePhotoUpload(){
@@ -124,10 +131,11 @@ function wirePhotoUpload(){
     const json = await postForm(API('upload_photo.php'), fd);
     document.getElementById('photoMsg').textContent =
       json.ok ? ('حُفظت: ' + json.path) : ('خطأ: ' + (json.msg||''));    
-    if (json.ok) loadGalleryByGroup();
+    if (json.ok) { loadGalleryByGroup(); fixCalendarLayout(); }
   });
 }
 
+// حفظ اليوم من المودال
 function wireDaySave(){
   const btn = document.getElementById('saveDay');
   if (!btn) return;
@@ -140,6 +148,7 @@ function wireDaySave(){
       modal && modal.hide();
       calendar.refetchEvents();
       refreshStats();
+      fixCalendarLayout();
     } else {
       alert('تعذّر الحفظ: ' + (json.msg || 'خطأ غير معروف'));
     }
@@ -170,12 +179,14 @@ async function loadGroups(){
     ul.appendChild(li);
   });
 }
+
 async function addGroup(){
   const name = document.getElementById('grpName').value.trim();
   if (!name) return;
   const res = await postJSON(API('create_group.php'), {name});
   if (res.ok){ document.getElementById('grpName').value=''; loadGroups(); }
 }
+
 async function findGroupIdByName(name){
   const res = await fetch(API('list_groups.php'));
   const json = await res.json();
@@ -191,7 +202,8 @@ async function loadGalleryByGroup(){
   const json = await res.json();
   grid.innerHTML = '';
   selectedForCompare = [];
-  document.getElementById('btnCompare').disabled = true;
+  const compareBtn = document.getElementById('btnCompare');
+  if (compareBtn) compareBtn.disabled = true;
 
   (json.data||[]).forEach(item=>{
     const col = document.createElement('div');
@@ -214,7 +226,7 @@ async function loadGalleryByGroup(){
       const p = chk.getAttribute('data-path');
       if (chk.checked) selectedForCompare.push(p);
       else selectedForCompare = selectedForCompare.filter(x=>x!==p);
-      document.getElementById('btnCompare').disabled = (selectedForCompare.length!==2);
+      if (compareBtn) compareBtn.disabled = (selectedForCompare.length!==2);
     });
   });
 
@@ -237,6 +249,7 @@ async function loadGalleryByGroup(){
   });
 }
 
+// مقارنة قبل/بعد
 function buildCompareSlider(imgA, imgB){
   const wrap = document.getElementById('compareWrap');
   wrap.innerHTML = `
@@ -258,6 +271,7 @@ function initTooltips(){
   const tList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
   tList.forEach(el => new bootstrap.Tooltip(el));
 }
+
 function startTour(){
   const steps = [
     { element: document.querySelector('#mainTabs'),
@@ -285,9 +299,15 @@ function startTour(){
       intro: 'علّم صورتين (Checkbox) ثم "مقارنة صورتين" لفتح سلايدر قبل/بعد.',
       position: 'left' }
   ];
+
   const tour = introJs();
-  tour.setOptions({ steps, rtl:true, nextLabel:'التالي', prevLabel:'السابق', doneLabel:'تم',
-                    scrollToElement:true, scrollTo:'element', showProgress:true, showBullets:true });
+  tour.setOptions({
+    steps, rtl:true,
+    nextLabel:'التالي', prevLabel:'السابق', doneLabel:'تم',
+    scrollToElement:true, scrollTo:'element', showProgress:true, showBullets:true
+  });
+
+  // بدّل التبويب حسب موضع العنصر
   tour.onbeforechange(function(targetEl){
     if (!targetEl) return;
     const paneQuick   = document.querySelector('#pane-quick');
@@ -297,10 +317,15 @@ function startTour(){
     else                                     new bootstrap.Tab(document.querySelector('#tab-dashboard')).show();
     targetEl.scrollIntoView({ block:'center', behavior:'smooth' });
   });
+
   tour.start();
 }
+
 function maybeAutoTour(){
-  try{ const k='gr_seen_tour_v2'; if(!localStorage.getItem(k)){ setTimeout(()=>startTour(), 400); localStorage.setItem(k,'1'); } }catch(e){}
+  try{
+    const k='gr_seen_tour_v2';
+    if(!localStorage.getItem(k)){ setTimeout(()=>startTour(), 400); localStorage.setItem(k,'1'); }
+  }catch(e){}
 }
 
 // ================== الثيمات ==================
@@ -308,7 +333,6 @@ function applyTheme(cls){
   document.body.classList.remove('theme-slate','theme-gray','theme-offwhite');
   document.body.classList.add(cls);
   localStorage.setItem('gr_theme', cls);
-  // حدّث الألوان الحيّة
   calendar && calendar.refetchEvents();
   refreshStats();
 }
@@ -316,8 +340,10 @@ function initTheme(){
   const sel = document.getElementById('themeSelect');
   const saved = localStorage.getItem('gr_theme') || 'theme-slate';
   document.body.classList.add(saved);
-  sel.value = saved;
-  sel.addEventListener('change', ()=> applyTheme(sel.value));
+  if (sel){
+    sel.value = saved;
+    sel.addEventListener('change', ()=> applyTheme(sel.value));
+  }
 }
 
 // ================== Init ==================
@@ -334,13 +360,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
     eventClick: async (info)=>{
       const date = info.event.startStr;
       const json = await postJSON(API('toggle_done.php'), {date});
-      if (json.ok){ calendar.refetchEvents(); refreshStats(); }
+      if (json.ok){ calendar.refetchEvents(); refreshStats(); fixCalendarLayout(); }
     }
   });
   calendar.render();
 
-  // Quick actions + Upload
-  wireGenerate(); wireQuickLog(); wirePhotoUpload();   wireDaySave();
+  // Quick actions + Upload + Modal Save
+  wireGenerate();
+  wireQuickLog();
+  wirePhotoUpload();
+  wireDaySave();
 
   // Groups & gallery
   document.getElementById('btnAddGroup')?.addEventListener('click', addGroup);
@@ -350,15 +379,24 @@ document.addEventListener('DOMContentLoaded', ()=>{
     new bootstrap.Modal('#compareModal').show();
   });
 
-  // Help
-  document.getElementById('helpFab')?.addEventListener('click', startTour);
-  document.addEventListener('keydown', (e)=>{ if(e.key==='F1'){ e.preventDefault(); startTour(); } });
+  // إصلاح التقويم عند إظهار تبويب لوحة المتابعة
+  document.querySelectorAll('#mainTabs [data-bs-toggle="tab"]').forEach(el=>{
+    el.addEventListener('shown.bs.tab', (e)=>{
+      if (e.target.id === 'tab-dashboard') {
+        setTimeout(() => { calendar.updateSize(); }, 50);
+      }
+    });
+  });
+
+  // مراقبة تغيّر حجم بطاقة التقويم (اختياري لكنه مفيد)
+  const calCard = document.getElementById('calendarCard');
+  if ('ResizeObserver' in window && calCard) {
+    const ro = new ResizeObserver(() => fixCalendarLayout());
+    ro.observe(calCard);
+  }
 
   refreshStats();
   loadGroups();
   loadGalleryByGroup();
   maybeAutoTour();
 });
-
-
-
