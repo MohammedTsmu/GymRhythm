@@ -116,6 +116,24 @@ function wirePhotoUpload(){
   });
 }
 
+function wireDaySave(){
+  const btn = document.getElementById('saveDay');
+  if (!btn) return;
+  btn.addEventListener('click', async ()=>{
+    const date = document.getElementById('dayDate').value;
+    const plan = document.getElementById('dayPlan').value;
+    const json = await postJSON(API('upsert_workout.php'), { date, plan });
+    if (json.ok){
+      const modal = bootstrap.Modal.getInstance(document.getElementById('dayModal'));
+      modal && modal.hide();
+      calendar.refetchEvents();
+      refreshStats();
+    } else {
+      alert('تعذّر الحفظ: ' + (json.msg || 'خطأ غير معروف'));
+    }
+  });
+}
+
 // ================== Groups & Gallery ==================
 let currentGroup = null;
 let selectedForCompare = [];
@@ -310,7 +328,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   calendar.render();
 
   // Quick actions + Upload
-  wireGenerate(); wireQuickLog(); wirePhotoUpload();
+  wireGenerate(); wireQuickLog(); wirePhotoUpload();   wireDaySave();
 
   // Groups & gallery
   document.getElementById('btnAddGroup')?.addEventListener('click', addGroup);
