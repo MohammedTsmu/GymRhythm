@@ -4,13 +4,20 @@
   <meta charset="utf-8" />
   <title>GymRhythm</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Bootstrap 5 (CDN) -->
+
+  <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
   <!-- FullCalendar -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- Intro.js (الدليل المرئي) -->
+  <link href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 
   <style>
     body{background:#0f172a;color:#e2e8f0}
@@ -19,6 +26,27 @@
     .fc .fc-toolbar-title{font-size:1.1rem}
     .nav-link{color:#e2e8f0}
     .nav-link.active{background:#374151}
+    /* زر المساعدة العائم */
+    #helpFab{
+      position: fixed; inset-inline-end: 16px; inset-block-end: 16px;
+      z-index: 1055; border-radius: 999px; padding: 10px 14px;
+      background:#2563eb; color:#fff; border:0; box-shadow: 0 6px 20px rgba(0,0,0,.35);
+    }
+    /* Legend شريط ألوان صغير */
+    .legend-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-inline-end:6px}
+    .legend-item{margin-inline-end:12px}
+
+
+      /* Intro.js - ثيم داكن واضح */
+  .introjs-tooltip { background:#111827; color:#e2e8f0; border:1px solid #333; }
+  .introjs-tooltip h1,.introjs-tooltip h2,.introjs-tooltip h3,.introjs-tooltip p { color:#e2e8f0; }
+  .introjs-tooltipbuttons .introjs-button { background:#2563eb; color:#fff; border:0; }
+  .introjs-button.introjs-prevbutton { background:#374151; }
+  .introjs-helperLayer { box-shadow: 0 0 0 9999px rgba(0,0,0,.65); }
+  .introjs-overlay { background: rgba(0,0,0,.65); }
+  .introjs-progress { background:#374151; }
+  .introjs-progressbar { background:#2563eb !important; }
+
   </style>
 </head>
 <body>
@@ -28,7 +56,7 @@
 
 <div class="container my-3">
   <!-- Tabs -->
-  <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
+  <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist" data-intro="هنا تتنقل بين لوحة المتابعة، الإجراءات السريعة، ومعرض التقدّم.">
     <li class="nav-item" role="presentation">
       <button class="nav-link active" id="tab-dashboard" data-bs-toggle="tab"
               data-bs-target="#pane-dashboard" type="button" role="tab">
@@ -54,38 +82,46 @@
     <div class="tab-pane fade show active" id="pane-dashboard" role="tabpanel">
       <div class="row g-3">
         <div class="col-lg-4 order-lg-1 order-2">
-          <div class="card p-3">
+          <div class="card p-3" id="statsCard" data-intro="إحصاءات سريعة: عدد أيام On/Off وعدد الأيام المُنجزة آخر 30 يوم.">
             <h5 class="mb-2">إحصاءات</h5>
+            <div class="mb-2 small">
+              <span class="legend-item"><span class="legend-dot" style="background:#60a5fa"></span>On</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#64748b"></span>Off</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span>تم التنفيذ</span>
+            </div>
             <canvas id="statsCanvas" height="180"></canvas>
           </div>
         </div>
         <div class="col-lg-8 order-lg-2 order-1">
-          <div class="card p-3">
+          <div class="card p-3" id="calendarCard"
+               data-intro="التقويم يعرض الخطة. انقر على يوم لفتح الضبط، أو انقر على الحدث نفسه للتبديل إلى &quot;تم التنفيذ&quot; ✓.">
             <div id="calendar"></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- إجراءات سريعة: توليد شهر + تسجيل اليوم + رفع صورة -->
+    <!-- إجراءات سريعة -->
     <div class="tab-pane fade" id="pane-quick" role="tabpanel">
       <div class="row g-3">
         <div class="col-lg-6">
-          <div class="card p-3 mb-3">
+          <div class="card p-3 mb-3" id="genCard"
+               data-intro="ولّد خطة الشهر (On/Off بالتناوب). اختر السنة والشهر ثم اضغط توليد.">
             <h5 class="mb-2">توليد شهر On/Off</h5>
             <div class="row g-2">
               <div class="col-4"><input id="year" class="form-control form-control-sm" type="number" value="2025"></div>
               <div class="col-4"><input id="month" class="form-control form-control-sm" type="number" value="9"></div>
               <div class="col-4 form-check mt-1">
                 <input id="startOn" class="form-check-input" type="checkbox" checked>
-                <label class="form-check-label">ابدأ بـ On</label>
+                <label class="form-check-label" data-bs-toggle="tooltip" title="ابدأ بالسطر الأول كـ On">ابدأ بـ On</label>
               </div>
             </div>
-            <button id="btnGenerate" class="btn btn-light btn-sm mt-2">توليد الجدول</button>
+            <button id="btnGenerate" class="btn btn-light btn-sm mt-2" data-bs-toggle="tooltip" title="ينشئ/يحدّث الأيام للشهر المختار">توليد الجدول</button>
             <div id="genMsg" class="small mt-2"></div>
           </div>
 
-          <div class="card p-3">
+          <div class="card p-3" id="quickLogCard"
+               data-intro="سجّل إنجاز يوم معيّن بسرعة (حتى بدون فتح التقويم).">
             <h5 class="mb-2">تسجيل تنفيذ اليوم</h5>
             <div class="row g-2">
               <div class="col-6"><input id="logDate" type="date" class="form-control form-control-sm"></div>
@@ -97,7 +133,8 @@
         </div>
 
         <div class="col-lg-6">
-          <div class="card p-3">
+          <div class="card p-3" id="uploadCard"
+               data-intro="ارفع صورة تقدّم. ستظهر في المعرض ويمكنك ربطها بمجموعة أو مقارنتها.">
             <h5 class="mb-2">رفع صورة التقدّم</h5>
             <input id="photoFile" type="file" accept="image/*" class="form-control form-control-sm">
             <button id="btnSavePhoto" class="btn btn-light btn-sm mt-2">حفظ الصورة</button>
@@ -111,7 +148,8 @@
     <div class="tab-pane fade" id="pane-gallery" role="tabpanel">
       <div class="row g-3">
         <div class="col-lg-3">
-          <div class="card p-3">
+          <div class="card p-3" id="groupsCard"
+               data-intro="أنشئ مجموعات (مثلاً Bulk 2025). اسحب صورة وأسقطها على المجموعة لإسنادها.">
             <h6 class="mb-2">المجموعات</h6>
             <div class="input-group input-group-sm mb-2">
               <input id="grpName" class="form-control" placeholder="اسم المجموعة">
@@ -121,7 +159,8 @@
           </div>
         </div>
         <div class="col-lg-9">
-          <div class="card p-3">
+          <div class="card p-3" id="galleryCard"
+               data-intro="اختر صورتين للمقارنة (Checkbox) ثم اضغط &quot;مقارنة صورتين&quot;. اسحب الصور نحو المجموعات للإسناد.">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <h6 class="m-0">الصور</h6>
               <button id="btnCompare" class="btn btn-outline-light btn-sm" disabled>مقارنة صورتين</button>
@@ -171,6 +210,9 @@
     </div>
   </div>
 </div>
+
+<!-- زر المساعدة العائم لتشغيل الجولة -->
+<button id="helpFab" title="دليل سريع (F1)">؟</button>
 
 <script src="./app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

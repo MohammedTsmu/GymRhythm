@@ -1,5 +1,5 @@
 // ================== الإعدادات ==================
-const API = (p) => `../api/${p}`; // إذا تفتح من http://localhost/<folder>/public/
+const API = (p) => `../api/${p}`;
 
 // ================== Utilities ==================
 async function postJSON(url, obj) {
@@ -15,9 +15,9 @@ async function postForm(url, data) {
   return await res.json();
 }
 function colorFor(plan, done){
-  if (done) return '#22c55e';       // أخضر = تم التنفيذ
-  if (plan==='Off') return '#64748b'; // رمادي
-  return '#60a5fa';                 // أزرق
+  if (done) return '#22c55e';
+  if (plan==='Off') return '#64748b';
+  return '#60a5fa';
 }
 
 // ================== Calendar/Data ==================
@@ -40,6 +40,7 @@ async function loadCalendarEvents(info, success, failure){
   } catch (e) { failure && failure(e.message); }
 }
 
+
 async function refreshStats(){
   try {
     const res = await fetch(API('stats_summary.php'));
@@ -51,11 +52,20 @@ async function refreshStats(){
       type: 'doughnut',
       data: {
         labels: ['On','Off','تمّ التنفيذ'],
-        datasets: [{ data: [json.on, json.off, json.done] }]
+        datasets: [{
+          data: [json.on, json.off, json.done],
+          backgroundColor: ['#60a5fa','#64748b','#22c55e'],
+          borderColor: ['#60a5fa','#64748b','#22c55e'],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        cutout: '60%' // منظر حلقي أنظف (اختياري)
       }
     });
   } catch(err){ console.warn('stats error', err); }
 }
+
 
 function openDayModal(dateStr, plan){
   document.getElementById('dayDate').value = dateStr;
@@ -73,11 +83,9 @@ function wireGenerate(){
     const startOn = document.getElementById('startOn').checked ? 1 : 0;
     const json = await postJSON(API('generate_onoff.php'), {year:y, month:m, startOn});
     document.getElementById('genMsg').textContent = json.ok ? 'تم ✅' : ('خطأ: ' + (json.msg||''));
-    calendar.refetchEvents();
-    refreshStats();
+    calendar.refetchEvents(); refreshStats();
   });
 }
-
 function wireQuickLog(){
   const btn = document.getElementById('btnLog');
   if (!btn) return;
@@ -90,7 +98,6 @@ function wireQuickLog(){
     if (json.ok) { calendar.refetchEvents(); refreshStats(); }
   });
 }
-
 function wirePhotoUpload(){
   const btn = document.getElementById('btnSavePhoto');
   if (!btn) return;
@@ -103,13 +110,13 @@ function wirePhotoUpload(){
     const json = await postForm(API('upload_photo.php'), fd);
     document.getElementById('photoMsg').textContent =
       json.ok ? ('حُفظت: ' + json.path) : ('خطأ: ' + (json.msg||''));    
-    if (json.ok) loadGalleryByGroup(); // حدّث المعرض
+    if (json.ok) loadGalleryByGroup();
   });
 }
 
 // ================== Groups & Gallery ==================
-let currentGroup = null;         // id أو null
-let selectedForCompare = [];     // [path1, path2]
+let currentGroup = null;
+let selectedForCompare = [];
 
 async function loadGroups(){
   const res = await fetch(API('list_groups.php'));
@@ -117,7 +124,6 @@ async function loadGroups(){
   const ul = document.getElementById('groupsList');
   ul.innerHTML = '';
 
-  // عنصر "الكل"
   const all = document.createElement('li');
   all.className = 'list-group-item';
   all.style.background='#0b1220'; all.style.color='#e2e8f0';
@@ -125,7 +131,7 @@ async function loadGroups(){
   all.onclick = ()=>{ currentGroup=null; loadGalleryByGroup(); };
   ul.appendChild(all);
 
-  json.data.forEach(g=>{
+  (json.data||[]).forEach(g=>{
     const li = document.createElement('li');
     li.className = 'list-group-item d-flex justify-content-between align-items-center';
     li.style.background = '#0b1220'; li.style.color='#e2e8f0';
@@ -134,12 +140,17 @@ async function loadGroups(){
     ul.appendChild(li);
   });
 }
-
 async function addGroup(){
   const name = document.getElementById('grpName').value.trim();
   if (!name) return;
   const res = await postJSON(API('create_group.php'), {name});
   if (res.ok){ document.getElementById('grpName').value=''; loadGroups(); }
+}
+async function findGroupIdByName(name){
+  const res = await fetch(API('list_groups.php'));
+  const json = await res.json();
+  const g = (json.data||[]).find(x=>x.name===name);
+  return g ? g.id : '';
 }
 
 async function loadGalleryByGroup(){
@@ -152,7 +163,7 @@ async function loadGalleryByGroup(){
   selectedForCompare = [];
   document.getElementById('btnCompare').disabled = true;
 
-  (json.data || []).forEach(item=>{
+  (json.data||[]).forEach(item=>{
     const col = document.createElement('div');
     col.className = 'col-6 col-md-4 col-lg-3';
     col.innerHTML = `
@@ -168,7 +179,6 @@ async function loadGalleryByGroup(){
     grid.appendChild(col);
   });
 
-  // اختيار صورتين للمقارنة
   grid.querySelectorAll('.selCompare').forEach(chk=>{
     chk.addEventListener('change', ()=>{
       const p = chk.getAttribute('data-path');
@@ -178,13 +188,12 @@ async function loadGalleryByGroup(){
     });
   });
 
-  // سحب الصورة إلى قائمة المجموعات لإسنادها
   grid.querySelectorAll('img[draggable="true"]').forEach(img=>{
     img.addEventListener('dragstart', (e)=>{
       e.dataTransfer.setData('text/plain', img.getAttribute('data-photo-id'));
     });
   });
-  // تفعيل الإسقاط على عناصر المجموعات
+
   document.querySelectorAll('#groupsList .list-group-item').forEach(li=>{
     li.addEventListener('dragover', e=> e.preventDefault());
     li.addEventListener('drop', async (e)=>{
@@ -198,14 +207,6 @@ async function loadGalleryByGroup(){
   });
 }
 
-async function findGroupIdByName(name){
-  const res = await fetch(API('list_groups.php'));
-  const json = await res.json();
-  const g = (json.data || []).find(x=>x.name===name);
-  return g ? g.id : '';
-}
-
-// مقارنة قبل/بعد
 function buildCompareSlider(imgA, imgB){
   const wrap = document.getElementById('compareWrap');
   wrap.innerHTML = `
@@ -222,19 +223,101 @@ function buildCompareSlider(imgA, imgB){
   range.addEventListener('input', ()=> { mask.style.width = range.value + '%'; });
 }
 
-// ================== Bootstrap & init ==================
-document.addEventListener('DOMContentLoaded', ()=>{
-  // quick actions + upload
-  wireGenerate();
-  wireQuickLog();
-  wirePhotoUpload();
+// ================== Guide (Intro.js) + Tooltips ==================
+function initTooltips(){
+  // Bootstrap tooltips
+  const tList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  tList.forEach(el => new bootstrap.Tooltip(el));
+}
 
-  // calendar
+
+function startTour(){
+  const steps = [
+    { element: document.querySelector('#mainTabs'),
+      intro: 'هنا تتنقل بين لوحة المتابعة، الإجراءات السريعة، ومعرض التقدّم.',
+      position: 'bottom' },
+
+    { element: document.querySelector('#calendarCard'),
+      intro: 'التقويم يعرض الخطة. انقر على يوم لضبطه، أو على الحدث للتبديل إلى "تم التنفيذ" ✓.',
+      position: 'right' },
+
+    { element: document.querySelector('#statsCard'),
+      intro: 'إحصاءات سريعة لآخر 30 يوم: On / Off / تم التنفيذ.',
+      position: 'left' },
+
+    // نتحول لتبويب "إجراءات سريعة"
+    { element: document.querySelector('#genCard'),
+      intro: 'ولّد خطة الشهر (On/Off). اختر السنة/الشهر ثم "توليد الجدول".',
+      position: 'bottom' },
+
+    { element: document.querySelector('#quickLogCard'),
+      intro: 'سجّل إنجاز يوم معيّن بسرعة بدون فتح التقويم.',
+      position: 'bottom' },
+
+    { element: document.querySelector('#uploadCard'),
+      intro: 'ارفع صورة التقدّم لتظهر في المعرض ويمكن ربطها بالمجموعات أو مقارنتها.',
+      position: 'bottom' },
+
+    // نتحول لتبويب "معرض التقدّم"
+    { element: document.querySelector('#groupsCard'),
+      intro: 'أنشئ مجموعات (Bulk, Cut...). اسحب صورة وأسقطها على المجموعة لإسنادها.',
+      position: 'right' },
+
+    { element: document.querySelector('#galleryCard'),
+      intro: 'علّم صورتين (Checkbox) ثم "مقارنة صورتين" لفتح سلايدر قبل/بعد.',
+      position: 'left' }
+  ];
+
+  const tour = introJs();
+  tour.setOptions({
+    steps,
+    rtl: true,
+    nextLabel: 'التالي', prevLabel: 'السابق', doneLabel: 'تم',
+    scrollToElement: true, scrollTo: 'element', // ضمن نطاق العنصر
+    showProgress: true, showBullets: true, autoPosition: true
+  });
+
+  // قبل كل خطوة: بدّل التبويب الصحيح إذا كان العنصر فيها
+  tour.onbeforechange(function(targetEl){
+    if (!targetEl) return;
+    const paneQuick = document.querySelector('#pane-quick');
+    const paneGallery = document.querySelector('#pane-gallery');
+    const tabQuick = document.querySelector('#tab-quick');
+    const tabGallery = document.querySelector('#tab-gallery');
+
+    if (paneQuick.contains(targetEl)) {
+      new bootstrap.Tab(tabQuick).show();
+    } else if (paneGallery.contains(targetEl)) {
+      new bootstrap.Tab(tabGallery).show();
+    } else {
+      // تبويب لوحة المتابعة
+      new bootstrap.Tab(document.querySelector('#tab-dashboard')).show();
+    }
+    // نتأكد العنصر داخل العرض
+    targetEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+
+  tour.start();
+}
+
+
+function maybeAutoTour(){
+  try{
+    const k = 'gr_seen_tour_v1';
+    if (!localStorage.getItem(k)){
+      setTimeout(()=> startTour(), 400);
+      localStorage.setItem(k, '1');
+    }
+  }catch(e){}
+}
+
+// ================== Init ==================
+document.addEventListener('DOMContentLoaded', ()=>{
+  wireGenerate(); wireQuickLog(); wirePhotoUpload();
+
   calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
     initialView: 'dayGridMonth',
-    firstDay: 6, // السبت
-    locale: 'ar',
-    height: 'auto',
+    firstDay: 6, locale: 'ar', height: 'auto',
     events: loadCalendarEvents,
     dateClick: (info)=> openDayModal(info.dateStr, 'On'),
     eventClick: async (info)=>{
@@ -245,15 +328,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
   calendar.render();
 
-  // groups & gallery
   document.getElementById('btnAddGroup')?.addEventListener('click', addGroup);
   document.getElementById('btnCompare')?.addEventListener('click', ()=>{
     if (selectedForCompare.length!==2) return;
     buildCompareSlider(selectedForCompare[0], selectedForCompare[1]);
     new bootstrap.Modal('#compareModal').show();
   });
+  document.getElementById('helpFab')?.addEventListener('click', startTour);
+  document.addEventListener('keydown', (e)=>{ if(e.key==='F1'){ e.preventDefault(); startTour(); } });
 
+  initTooltips();
   refreshStats();
   loadGroups();
   loadGalleryByGroup();
+  maybeAutoTour();
 });
