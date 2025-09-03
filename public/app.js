@@ -1,28 +1,51 @@
 // ================== إعداد مسارات الـAPI ==================
 const API = (p) => `../api/${p}`;
 
-// ================== Helpers ==================
+// ================== ثابت التوقيت + Helpers ==================
+const APP_TZ = 'Asia/Baghdad';
+
+// yyyy-mm-dd بتوقيت بغداد
+function todayYMD() {
+  const d = new Date();
+  const y = new Intl.DateTimeFormat('en', { timeZone: APP_TZ, year: 'numeric' }).format(d);
+  const m = new Intl.DateTimeFormat('en', { timeZone: APP_TZ, month: '2-digit' }).format(d);
+  const da = new Intl.DateTimeFormat('en', { timeZone: APP_TZ, day: '2-digit' }).format(d);
+  return `${y}-${m}-${da}`;
+}
+
+// طلب POST (x-www-form-urlencoded)
 async function postJSON(url, obj) {
   const res = await fetch(url, {
     method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-    body: new URLSearchParams(obj).toString()
+    body: new URLSearchParams(obj).toString(),
+    credentials: 'same-origin'
   });
   return await res.json();
 }
+
+// طلب POST (multipart/form-data)
 async function postForm(url, data) {
-  const res = await fetch(url, { method:'POST', body: data });
+  const res = await fetch(url, { method:'POST', body: data, credentials:'same-origin' });
   return await res.json();
 }
+
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
+// ================== ألوان الثيم ==================
+let THEME = { on:'#60a5fa', off:'#64748b', done:'#22c55e', text:'#e2e8f0' };
+
+function refreshThemeVars(){
+  THEME.on   = cssVar('--event-on')   || THEME.on;
+  THEME.off  = cssVar('--event-off')  || THEME.off;
+  THEME.done = cssVar('--event-done') || THEME.done;
+  THEME.text = cssVar('--text')       || THEME.text;
+}
+
 function colorFor(plan, done){
-  const ON   = cssVar('--event-on')   || '#60a5fa';
-  const OFF  = cssVar('--event-off')  || '#64748b';
-  const DONE = cssVar('--event-done') || '#22c55e';
-  if (done) return DONE;
-  if (plan==='Off') return OFF;
-  return ON;
+  if (done) return THEME.done;
+  if (plan==='Off') return THEME.off;
+  return THEME.on;
 }
 
 // يجبر فول كالندر يعيد حساب الحجم بعد تغيّر الحاوية/التبويب
@@ -37,7 +60,7 @@ let calendar, statsChart;
 
 async function loadCalendarEvents(info, success, failure){
   try {
-    const res = await fetch(API('calendar_events.php') + `?start=${info.startStr}&end=${info.endStr}`);
+    const res = await fetch(API('calendar_events.php') + `?start=${info.startStr}&end=${info.endStr}`, { credentials:'same-origin' });
     const json = await res.json();
     if (!json.ok) return failure && failure('api error');
     const events = json.data.map(e=>({
@@ -54,58 +77,38 @@ async function loadCalendarEvents(info, success, failure){
 
 async function refreshStats(){
   try {
-    const res = await fetch(API('stats_summary.php'));
+    const res = await fetch(API('stats_summary.php'), { credentials:'same-origin' });
     const json = await res.json();
     if (!json.ok) return;
     const ctx = document.getElementById('statsCanvas');
     if (statsChart) statsChart.destroy();
-    const colors = [
-      cssVar('--event-on')   || '#60a5fa',
-      cssVar('--event-off')  || '#64748b',
-      cssVar('--event-done') || '#22c55e'
-    ];
-    
-    // statsChart = new Chart(ctx, {
-    //   type: 'doughnut',
-    //   data: {
-    //     labels: ['On','Off','تمّ التنفيذ'],
-    //     datasets: [{
-    //       data: [json.on, json.off, json.done],
-    //       backgroundColor: colors,
-    //       borderColor: colors,
-    //       borderWidth: 1
-    //     }]
-    //   },
-    //   options: { cutout: '60%' }
-    // });
+    const colors = [ THEME.on, THEME.off, THEME.done ];
 
-        statsChart = new Chart(ctx, {
-  type: 'doughnut',
-  data: {
-    labels: ['On','Off','تمّ التنفيذ'],
-    datasets: [{
-      data: [json.on, json.off, json.done],
-      backgroundColor: colors,
-      borderColor: colors,
-      borderWidth: 1
-    }]
-  },
-  options: {
-    cutout: '60%',
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: {
-          color: cssVar('--text') || '#e2e8f0',
-          usePointStyle: true,
-          pointStyle: 'circle'
+    statsChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['On','Off','تمّ التنفيذ'],
+        datasets: [{
+          data: [json.on, json.off, json.done],
+          backgroundColor: colors,
+          borderColor: colors,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        cutout: '60%',
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              color: THEME.text,
+              usePointStyle: true,
+              pointStyle: 'circle'
+            }
+          }
         }
       }
-    }
-  }
-});
-
-
+    });
   } catch(err){ console.warn('stats error', err); }
 }
 
@@ -134,9 +137,9 @@ function wireGenerate(){
 function wireQuickLog(){
   const btn = document.getElementById('btnLog');
   if (!btn) return;
-  // تعبئة تاريخ اليوم افتراضيًا إن فارغ
+  // تعبئة تاريخ اليوم افتراضيًا إن فارغ (بتوقيت بغداد)
   const d = document.getElementById('logDate');
-  if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
+  if (d && !d.value) d.value = todayYMD();
 
   btn.addEventListener('click', async ()=>{
     const d = document.getElementById('logDate').value;
@@ -154,14 +157,28 @@ function wirePhotoUpload(){
   btn.addEventListener('click', async ()=>{
     const inp = document.getElementById('photoFile');
     if (!inp?.files?.length) return alert('اختر صورة');
+
+    const file = inp.files[0];
+    // فحص النوع والحجم
+    if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+      return alert('صيغة الصورة غير مدعومة. استخدم PNG أو JPG أو WEBP.');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return alert('حجم الصورة كبير. الحد الأقصى 5MB.');
+    }
+
     const fd = new FormData();
-    fd.append('photo', inp.files[0]);
-    fd.append('date', new Date().toISOString().slice(0,10));
-    // const json = await postForm(API('upload_photo.php'), fd);
-    const json = await postForm(API('upload_photo_blob.php'), fd);
-    document.getElementById('photoMsg').textContent =
-      json.ok ? ('حُفظت: ' + json.path) : ('خطأ: ' + (json.msg||''));    
-    if (json.ok) { loadGalleryByGroup(); fixCalendarLayout(); }
+    fd.append('photo', file);
+    fd.append('date', todayYMD());
+
+    try{
+      const json = await postForm(API('upload_photo_blob.php'), fd);
+      document.getElementById('photoMsg').textContent =
+        json.ok ? 'حُفظت الصورة ✓' : ('خطأ: ' + (json.msg||''));
+      if (json.ok) { loadGalleryByGroup(); fixCalendarLayout(); }
+    }catch(e){
+      document.getElementById('photoMsg').textContent = 'تعذّر الرفع: ' + e.message;
+    }
   });
 }
 
@@ -190,7 +207,7 @@ let currentGroup = null;
 let selectedForCompare = [];
 
 async function loadGroups(){
-  const res = await fetch(API('list_groups.php'));
+  const res = await fetch(API('list_groups.php'), { credentials:'same-origin' });
   const json = await res.json();
   const ul = document.getElementById('groupsList');
   ul.innerHTML = '';
@@ -205,30 +222,30 @@ async function loadGroups(){
     const li = document.createElement('li');
     li.className = 'list-group-item d-flex justify-content-between align-items-center';
     li.textContent = g.name;
+    li.dataset.id = g.id; // حقن المعرف لتجنب استعلام لاحق
     li.onclick = ()=>{ currentGroup = g.id; loadGalleryByGroup(); };
     ul.appendChild(li);
   });
-}
 
-async function addGroup(){
-  const name = document.getElementById('grpName').value.trim();
-  if (!name) return;
-  const res = await postJSON(API('create_group.php'), {name});
-  if (res.ok){ document.getElementById('grpName').value=''; loadGroups(); }
-}
-
-async function findGroupIdByName(name){
-  const res = await fetch(API('list_groups.php'));
-  const json = await res.json();
-  const g = (json.data||[]).find(x=>x.name===name);
-  return g ? g.id : '';
+  // تفعيل إسقاط الصور على العناصر بعد إعادة البناء
+  document.querySelectorAll('#groupsList .list-group-item').forEach(li=>{
+    li.addEventListener('dragover', e=> e.preventDefault());
+    li.addEventListener('drop', async (e)=>{
+      e.preventDefault();
+      const pid = e.dataTransfer.getData('text/plain');
+      const isAll = li.textContent.trim()==='الكل';
+      const gid = isAll ? '' : (li.dataset.id || '');
+      const res = await postJSON(API('assign_photo.php'), { photo_id: pid, group_id: gid });
+      if (res.ok) loadGalleryByGroup();
+    });
+  });
 }
 
 async function loadGalleryByGroup(){
   const grid = document.getElementById('galleryGrid');
   const url = currentGroup==null ? API('list_photos.php')
                                  : API('list_group_photos.php') + `?group_id=${currentGroup}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { credentials:'same-origin' });
   const json = await res.json();
   grid.innerHTML = '';
   selectedForCompare = [];
@@ -238,28 +255,19 @@ async function loadGalleryByGroup(){
   (json.data||[]).forEach(item=>{
     const col = document.createElement('div');
     col.className = 'col-6 col-md-4 col-lg-3';
-    // داخل loadGalleryByGroup() أثناء بناء الكروت
-      col.innerHTML = `
-        <div class="card p-1" style="background:var(--surface);border:1px solid var(--border)">
-          <img src="${API('photo_get.php')}?id=${item.id}" class="img-fluid rounded" alt="" draggable="true" data-photo-id="${item.id}">
-          <div class="d-flex justify-content-between align-items-center mt-1">
-            <div class="form-check">
-              <input class="form-check-input selCompare" type="checkbox" data-path="${API('photo_get.php')}?id=${item.id}">
-            </div>
-            <small class="text-muted">${item.date ?? ''}</small>
-          </div>
-        </div>`;
+    const imgSrc = `${API('photo_get.php')}?id=${item.id}`;
+    const altTxt = `صورة #${item.id}${item.date ? ' - ' + item.date : ''}`;
 
-    // col.innerHTML = `
-    //   <div class="card p-1" style="background:var(--surface);border:1px solid var(--border)">
-    //     <img src="../${item.path}" class="img-fluid rounded" alt="" draggable="true" data-photo-id="${item.id}">
-    //     <div class="d-flex justify-content-between align-items-center mt-1">
-    //       <div class="form-check">
-    //         <input class="form-check-input selCompare" type="checkbox" data-path="../${item.path}">
-    //       </div>
-    //       <small class="text-muted">${item.date}</small>
-    //     </div>
-    //   </div>`;
+    col.innerHTML = `
+      <div class="card p-1" style="background:var(--surface);border:1px solid var(--border)">
+        <img src="${imgSrc}" class="img-fluid rounded" alt="${altTxt}" draggable="true" data-photo-id="${item.id}">
+        <div class="d-flex justify-content-between align-items-center mt-1">
+          <div class="form-check">
+            <input class="form-check-input selCompare" type="checkbox" data-path="${imgSrc}">
+          </div>
+          <small class="text-muted">${item.date ?? ''}</small>
+        </div>
+      </div>`;
     grid.appendChild(col);
   });
 
@@ -277,18 +285,6 @@ async function loadGalleryByGroup(){
       e.dataTransfer.setData('text/plain', img.getAttribute('data-photo-id'));
     });
   });
-
-  document.querySelectorAll('#groupsList .list-group-item').forEach(li=>{
-    li.addEventListener('dragover', e=> e.preventDefault());
-    li.addEventListener('drop', async (e)=>{
-      e.preventDefault();
-      const pid = e.dataTransfer.getData('text/plain');
-      const isAll = li.textContent.trim()==='الكل';
-      const gid = isAll ? '' : (await findGroupIdByName(li.textContent.trim()));
-      const res = await postJSON(API('assign_photo.php'), { photo_id: pid, group_id: gid });
-      if (res.ok) loadGalleryByGroup();
-    });
-  });
 }
 
 // مقارنة قبل/بعد
@@ -296,9 +292,9 @@ function buildCompareSlider(imgA, imgB){
   const wrap = document.getElementById('compareWrap');
   wrap.innerHTML = `
     <div style="position:relative">
-      <img id="cmpA" src="${imgA}" style="width:100%;display:block">
+      <img id="cmpA" src="${imgA}" style="width:100%;display:block" alt="قبل">
       <div id="cmpMask" style="position:absolute;top:0;left:0;width:50%;overflow:hidden">
-        <img id="cmpB" src="${imgB}" style="width:100%;display:block">
+        <img id="cmpB" src="${imgB}" style="width:100%;display:block" alt="بعد">
       </div>
       <input id="cmpRange" type="range" min="0" max="100" value="50"
         style="position:absolute;left:0;right:0;bottom:10px;width:100%">
@@ -375,6 +371,7 @@ function applyTheme(cls){
   document.body.classList.remove('theme-slate','theme-gray','theme-offwhite');
   document.body.classList.add(cls);
   localStorage.setItem('gr_theme', cls);
+  refreshThemeVars();        // تحديث ألوان الثيم
   calendar && calendar.refetchEvents();
   refreshStats();
 }
@@ -391,6 +388,7 @@ function initTheme(){
 // ================== Init ==================
 document.addEventListener('DOMContentLoaded', ()=>{
   initTheme();
+  refreshThemeVars(); // مهمة قبل أي رسم أو تلوين
   initTooltips();
 
   // Calendar
@@ -400,7 +398,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     events: loadCalendarEvents,
     dateClick: (info)=> openDayModal(info.dateStr, 'On'),
     eventClick: async (info)=>{
-      const date = info.event.startStr;
+      const date = info.event.startStr; // YYYY-MM-DD من FullCalendar
       const json = await postJSON(API('toggle_done.php'), {date});
       if (json.ok){ calendar.refetchEvents(); refreshStats(); fixCalendarLayout(); }
     }
@@ -414,7 +412,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
   wireDaySave();
 
   // Groups & gallery
-  document.getElementById('btnAddGroup')?.addEventListener('click', addGroup);
+  document.getElementById('btnAddGroup')?.addEventListener('click', async ()=>{
+    const name = document.getElementById('grpName').value.trim();
+    if (!name) return;
+    const res = await postJSON(API('create_group.php'), {name});
+    if (res.ok){ document.getElementById('grpName').value=''; loadGroups(); }
+  });
+
   document.getElementById('btnCompare')?.addEventListener('click', ()=>{
     if (selectedForCompare.length!==2) return;
     buildCompareSlider(selectedForCompare[0], selectedForCompare[1]);
