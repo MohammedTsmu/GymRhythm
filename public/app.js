@@ -1,5 +1,5 @@
 // ================== الإعدادات ==================
-const API = (p) => `../api/${p}`; // يعمل عندما تفتح من http://localhost/<folder>/public/
+const API = (p) => `../api/${p}`; // إذا تفتح من http://localhost/<folder>/public/
 
 // ================== Utilities ==================
 async function postJSON(url, obj) {
@@ -15,9 +15,9 @@ async function postForm(url, data) {
   return await res.json();
 }
 function colorFor(plan, done){
-  if (done) return '#22c55e';      // أخضر = تم التنفيذ
+  if (done) return '#22c55e';       // أخضر = تم التنفيذ
   if (plan==='Off') return '#64748b'; // رمادي
-  return '#60a5fa';                // أزرق
+  return '#60a5fa';                 // أزرق
 }
 
 // ================== Calendar/Data ==================
@@ -103,39 +103,133 @@ function wirePhotoUpload(){
     const json = await postForm(API('upload_photo.php'), fd);
     document.getElementById('photoMsg').textContent =
       json.ok ? ('حُفظت: ' + json.path) : ('خطأ: ' + (json.msg||''));    
-    if (json.ok) loadGallery();
+    if (json.ok) loadGalleryByGroup(); // حدّث المعرض
   });
 }
 
-// ================== Gallery ==================
-async function loadGallery(){
-  const grid = document.getElementById('galleryGrid');
-  if (!grid) return;
-  const res = await fetch(API('list_photos.php'));
+// ================== Groups & Gallery ==================
+let currentGroup = null;         // id أو null
+let selectedForCompare = [];     // [path1, path2]
+
+async function loadGroups(){
+  const res = await fetch(API('list_groups.php'));
   const json = await res.json();
-  grid.innerHTML = '';
-  if (json.ok && json.data.length){
-    json.data.forEach(item=>{
-      const col = document.createElement('div');
-      col.className = 'col-6 col-md-4 col-lg-3';
-      col.innerHTML = `
-        <div class="card p-1" style="background:#111827">
-          <img src="../${item.path}" class="img-fluid rounded" alt="">
-          <div class="small text-muted mt-1">${item.date}</div>
-        </div>`;
-      grid.appendChild(col);
-    });
-  } else {
-    grid.innerHTML = '<div class="text-muted">لا توجد صور بعد.</div>';
-  }
+  const ul = document.getElementById('groupsList');
+  ul.innerHTML = '';
+
+  // عنصر "الكل"
+  const all = document.createElement('li');
+  all.className = 'list-group-item';
+  all.style.background='#0b1220'; all.style.color='#e2e8f0';
+  all.textContent = 'الكل';
+  all.onclick = ()=>{ currentGroup=null; loadGalleryByGroup(); };
+  ul.appendChild(all);
+
+  json.data.forEach(g=>{
+    const li = document.createElement('li');
+    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+    li.style.background = '#0b1220'; li.style.color='#e2e8f0';
+    li.textContent = g.name;
+    li.onclick = ()=>{ currentGroup = g.id; loadGalleryByGroup(); };
+    ul.appendChild(li);
+  });
 }
 
-// ================== Bootstrap Calendar wiring ==================
+async function addGroup(){
+  const name = document.getElementById('grpName').value.trim();
+  if (!name) return;
+  const res = await postJSON(API('create_group.php'), {name});
+  if (res.ok){ document.getElementById('grpName').value=''; loadGroups(); }
+}
+
+async function loadGalleryByGroup(){
+  const grid = document.getElementById('galleryGrid');
+  const url = currentGroup==null ? API('list_photos.php')
+                                 : API('list_group_photos.php') + `?group_id=${currentGroup}`;
+  const res = await fetch(url);
+  const json = await res.json();
+  grid.innerHTML = '';
+  selectedForCompare = [];
+  document.getElementById('btnCompare').disabled = true;
+
+  (json.data || []).forEach(item=>{
+    const col = document.createElement('div');
+    col.className = 'col-6 col-md-4 col-lg-3';
+    col.innerHTML = `
+      <div class="card p-1" style="background:#111827">
+        <img src="../${item.path}" class="img-fluid rounded" alt="" draggable="true" data-photo-id="${item.id}">
+        <div class="d-flex justify-content-between align-items-center mt-1">
+          <div class="form-check">
+            <input class="form-check-input selCompare" type="checkbox" data-path="../${item.path}">
+          </div>
+          <small class="text-muted">${item.date}</small>
+        </div>
+      </div>`;
+    grid.appendChild(col);
+  });
+
+  // اختيار صورتين للمقارنة
+  grid.querySelectorAll('.selCompare').forEach(chk=>{
+    chk.addEventListener('change', ()=>{
+      const p = chk.getAttribute('data-path');
+      if (chk.checked) selectedForCompare.push(p);
+      else selectedForCompare = selectedForCompare.filter(x=>x!==p);
+      document.getElementById('btnCompare').disabled = (selectedForCompare.length!==2);
+    });
+  });
+
+  // سحب الصورة إلى قائمة المجموعات لإسنادها
+  grid.querySelectorAll('img[draggable="true"]').forEach(img=>{
+    img.addEventListener('dragstart', (e)=>{
+      e.dataTransfer.setData('text/plain', img.getAttribute('data-photo-id'));
+    });
+  });
+  // تفعيل الإسقاط على عناصر المجموعات
+  document.querySelectorAll('#groupsList .list-group-item').forEach(li=>{
+    li.addEventListener('dragover', e=> e.preventDefault());
+    li.addEventListener('drop', async (e)=>{
+      e.preventDefault();
+      const pid = e.dataTransfer.getData('text/plain');
+      const isAll = li.textContent.trim()==='الكل';
+      const gid = isAll ? '' : (await findGroupIdByName(li.textContent.trim()));
+      const res = await postJSON(API('assign_photo.php'), { photo_id: pid, group_id: gid });
+      if (res.ok) loadGalleryByGroup();
+    });
+  });
+}
+
+async function findGroupIdByName(name){
+  const res = await fetch(API('list_groups.php'));
+  const json = await res.json();
+  const g = (json.data || []).find(x=>x.name===name);
+  return g ? g.id : '';
+}
+
+// مقارنة قبل/بعد
+function buildCompareSlider(imgA, imgB){
+  const wrap = document.getElementById('compareWrap');
+  wrap.innerHTML = `
+    <div style="position:relative">
+      <img id="cmpA" src="${imgA}" style="width:100%;display:block">
+      <div id="cmpMask" style="position:absolute;top:0;left:0;width:50%;overflow:hidden">
+        <img id="cmpB" src="${imgB}" style="width:100%;display:block">
+      </div>
+      <input id="cmpRange" type="range" min="0" max="100" value="50"
+        style="position:absolute;left:0;right:0;bottom:10px;width:100%">
+    </div>`;
+  const mask = wrap.querySelector('#cmpMask');
+  const range = wrap.querySelector('#cmpRange');
+  range.addEventListener('input', ()=> { mask.style.width = range.value + '%'; });
+}
+
+// ================== Bootstrap & init ==================
 document.addEventListener('DOMContentLoaded', ()=>{
+  // quick actions + upload
   wireGenerate();
   wireQuickLog();
   wirePhotoUpload();
 
+  // calendar
   calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
     initialView: 'dayGridMonth',
     firstDay: 6, // السبت
@@ -151,6 +245,15 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
   calendar.render();
 
+  // groups & gallery
+  document.getElementById('btnAddGroup')?.addEventListener('click', addGroup);
+  document.getElementById('btnCompare')?.addEventListener('click', ()=>{
+    if (selectedForCompare.length!==2) return;
+    buildCompareSlider(selectedForCompare[0], selectedForCompare[1]);
+    new bootstrap.Modal('#compareModal').show();
+  });
+
   refreshStats();
-  loadGallery();
+  loadGroups();
+  loadGalleryByGroup();
 });

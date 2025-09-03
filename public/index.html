@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
   <style>
     body{background:#0f172a;color:#e2e8f0}
     .navbar{background:#111827}
@@ -26,7 +27,7 @@
 </nav>
 
 <div class="container my-3">
-  <!-- Tabs (القائمة) -->
+  <!-- Tabs -->
   <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link active" id="tab-dashboard" data-bs-toggle="tab"
@@ -108,14 +109,32 @@
 
     <!-- معرض التقدّم -->
     <div class="tab-pane fade" id="pane-gallery" role="tabpanel">
-      <div class="card p-3">
-        <div id="galleryGrid" class="row g-2"></div>
+      <div class="row g-3">
+        <div class="col-lg-3">
+          <div class="card p-3">
+            <h6 class="mb-2">المجموعات</h6>
+            <div class="input-group input-group-sm mb-2">
+              <input id="grpName" class="form-control" placeholder="اسم المجموعة">
+              <button id="btnAddGroup" class="btn btn-light">إضافة</button>
+            </div>
+            <ul id="groupsList" class="list-group small"></ul>
+          </div>
+        </div>
+        <div class="col-lg-9">
+          <div class="card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="m-0">الصور</h6>
+              <button id="btnCompare" class="btn btn-outline-light btn-sm" disabled>مقارنة صورتين</button>
+            </div>
+            <div id="galleryGrid" class="row g-2"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Modal ضبط اليوم -->
+<!-- Modal: ضبط يوم -->
 <div class="modal fade" id="dayModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content" style="background:#1f2937;color:#e2e8f0">
@@ -131,10 +150,23 @@
             <option>Chest</option><option>Back</option><option>Shoulders</option>
           </select>
         </div>
-        <div class="form-text">انقر حدث اليوم في التقويم لتبديل “تم التنفيذ”.</div>
+        <div class="form-text">انقر الحدث في التقويم لتبديل “تم التنفيذ”.</div>
       </div>
       <div class="modal-footer">
         <button id="saveDay" class="btn btn-light btn-sm">حفظ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: مقارنة قبل/بعد -->
+<div class="modal fade" id="compareModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" style="background:#1f2937;color:#e2e8f0">
+      <div class="modal-header"><h5 class="modal-title">مقارنة قبل/بعد</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div id="compareWrap" style="position:relative;max-width:100%;overflow:hidden"></div>
       </div>
     </div>
   </div>
