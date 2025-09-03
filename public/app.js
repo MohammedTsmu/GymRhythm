@@ -64,19 +64,48 @@ async function refreshStats(){
       cssVar('--event-off')  || '#64748b',
       cssVar('--event-done') || '#22c55e'
     ];
-    statsChart = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['On','Off','تمّ التنفيذ'],
-        datasets: [{
-          data: [json.on, json.off, json.done],
-          backgroundColor: colors,
-          borderColor: colors,
-          borderWidth: 1
-        }]
-      },
-      options: { cutout: '60%' }
-    });
+    
+    // statsChart = new Chart(ctx, {
+    //   type: 'doughnut',
+    //   data: {
+    //     labels: ['On','Off','تمّ التنفيذ'],
+    //     datasets: [{
+    //       data: [json.on, json.off, json.done],
+    //       backgroundColor: colors,
+    //       borderColor: colors,
+    //       borderWidth: 1
+    //     }]
+    //   },
+    //   options: { cutout: '60%' }
+    // });
+
+        statsChart = new Chart(ctx, {
+  type: 'doughnut',
+  data: {
+    labels: ['On','Off','تمّ التنفيذ'],
+    datasets: [{
+      data: [json.on, json.off, json.done],
+      backgroundColor: colors,
+      borderColor: colors,
+      borderWidth: 1
+    }]
+  },
+  options: {
+    cutout: '60%',
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          color: cssVar('--text') || '#e2e8f0',
+          usePointStyle: true,
+          pointStyle: 'circle'
+        }
+      }
+    }
+  }
+});
+
+
   } catch(err){ console.warn('stats error', err); }
 }
 

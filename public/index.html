@@ -83,12 +83,13 @@
     /* FullCalendar عنوان */
     .fc .fc-toolbar-title{ font-size:1.1rem; }
 
-    /* Legend */
+    /* Legend
     .legend-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-inline-end:6px}
     .legend-item{margin-inline-end:12px}
     .legend-dot.on   { background: var(--event-on); }
     .legend-dot.off  { background: var(--event-off); }
-    .legend-dot.done { background: var(--event-done); }
+    .legend-dot.done { background: var(--event-done); } */
+
 
     /* زر المساعدة العائم */
     #helpFab{
@@ -146,11 +147,11 @@
         <div class="col-lg-4 order-lg-1 order-2">
           <div class="card p-3" id="statsCard" data-intro="إحصاءات سريعة: عدد أيام On/Off وعدد الأيام المُنجزة آخر 30 يوم.">
             <h5 class="mb-2">إحصاءات</h5>
-            <div class="mb-2 small">
+            <!-- <div class="mb-2 small">
               <span class="legend-item"><span class="legend-dot on"></span>On</span>
               <span class="legend-item"><span class="legend-dot off"></span>Off</span>
               <span class="legend-item"><span class="legend-dot done"></span>تم التنفيذ</span>
-            </div>
+            </div> -->
             <canvas id="statsCanvas" height="180"></canvas>
           </div>
         </div>
