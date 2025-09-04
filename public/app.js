@@ -558,6 +558,193 @@ function initTheme(){
   }
 }
 
+// ================== Import / Export helpers ==================
+
+// Fetch all workouts (very wide range once)
+async function fetchAllWorkoutsInRange(start='2000-01-01', end='2100-12-31'){
+  const res = await fetch(API('calendar_events.php') + `?start=${start}&end=${end}`, { credentials:'same-origin' });
+  const json = await res.json();
+  if (!json.ok) throw new Error('failed to load workouts');
+  // data: [{date, plan, done}]
+  return json.data || [];
+}
+
+// Fetch groups (names only)
+async function fetchAllGroups(){
+  const res = await fetch(API('list_groups.php'), { credentials:'same-origin' });
+  const json = await res.json();
+  if (!json.ok) throw new Error('failed to load groups');
+  // data: [{id, name}]
+  return (json.data || []).map(g => ({ name: g.name }));
+}
+
+// Download helper
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+// Export: JSON (workouts + groups)
+async function exportDataJSON(){
+  const [workouts, groups] = await Promise.all([
+    fetchAllWorkoutsInRange(),
+    fetchAllGroups()
+  ]);
+
+  const payload = {
+    type: 'GymRhythmExport',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    workouts,   // [{date, plan, done}]
+    groups      // [{name}]
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+  const ymd = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  downloadBlob(blob, `gymrhythm_export_${ymd}.json`);
+}
+
+// Export: CSV (workouts only)
+async function exportWorkoutsCSV(){
+  const workouts = await fetchAllWorkoutsInRange();
+  const header = 'date,plan,done';
+  const lines = workouts.map(w => `${w.date},${w.plan},${w.done ? 1 : 0}`);
+  const bom = '\ufeff'; // better Excel support
+  const blob = new Blob([bom + [header, ...lines].join('\n')], { type:'text/csv;charset=utf-8' });
+  const ymd = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  downloadBlob(blob, `gymrhythm_workouts_${ymd}.csv`);
+}
+
+// Import JSON (workouts + groups)
+// - Upserts plan for each date
+// - Syncs "done" by comparing current state (no accidental flip)
+async function importDataFromJSON(file){
+  const msg = document.getElementById('importMsg');
+  const setMsg = (t, cls='') => { msg.textContent = t; msg.className = `small mt-2 ${cls}`; };
+
+  if (!file) { setMsg('اختر ملف JSON أولاً', 'text-danger'); return; }
+
+  // Read file
+  let payload;
+  try{
+    const text = await file.text();
+    payload = JSON.parse(text);
+  }catch(e){
+    setMsg('ملف غير صالح أو صيغة JSON خاطئة.', 'text-danger');
+    return;
+  }
+
+  // Validate
+  if (!payload || payload.type !== 'GymRhythmExport' || !Array.isArray(payload.workouts)){
+    setMsg('هذا الملف لا يبدو تصديرًا من GymRhythm.', 'text-danger');
+    return;
+  }
+
+  const totalW = payload.workouts.length;
+  const groups = Array.isArray(payload.groups) ? payload.groups : [];
+
+  // Fetch current state to avoid double toggles
+  const current = await fetchAllWorkoutsInRange();
+  const doneMap = Object.fromEntries(current.map(x => [x.date, !!x.done]));
+
+  // Create groups (skip if name exists)
+  try{
+    const existing = await fetchAllGroups();
+    const existSet = new Set(existing.map(g => g.name));
+    let created = 0;
+    for (const g of groups){
+      if (!g?.name || existSet.has(g.name)) continue;
+      const r = await postJSON(API('create_group.php'), { name: g.name });
+      if (r.ok) { created++; existSet.add(g.name); }
+    }
+    if (created) setMsg(`تم إنشاء ${created} مجموعة...`, 'text-info');
+  }catch(e){
+    // non-fatal
+    console.warn('group import failed', e);
+  }
+
+  // Upsert workouts and sync "done"
+  let ok = 0, fail = 0, toggled = 0;
+  for (let i = 0; i < totalW; i++){
+    const w = payload.workouts[i];
+    setMsg(`جارٍ الاستيراد ${i+1}/${totalW} — ${w.date}...`, 'text-muted');
+
+    try{
+      const r = await postJSON(API('upsert_workout.php'), { date: w.date, plan: w.plan });
+      if (!r.ok) throw new Error(r.msg || 'upsert failed');
+      ok++;
+
+      const cur = !!doneMap[w.date];
+      const target = !!w.done;
+      if (cur !== target){
+        const t = await postJSON(API('toggle_done.php'), { date: w.date });
+        if (t.ok) { toggled++; doneMap[w.date] = target; }
+      }
+    }catch(e){
+      fail++;
+      console.warn('import workout error', w, e);
+    }
+  }
+
+  const summary = `تم الاستيراد: ${ok} يوم، فشل: ${fail}${toggled?`، ضبط "تم التنفيذ": ${toggled}`:''}.`;
+  setMsg(summary, fail ? 'text-warning' : 'text-success');
+
+  // Refresh UI
+  calendar?.refetchEvents();
+  refreshStats();
+}
+
+// Wire buttons/inputs
+function wireImportExport(){
+  const expJsonBtn = document.getElementById('btnExportJSON');
+  const expCsvBtn  = document.getElementById('btnExportCSV');
+  const impBtn     = document.getElementById('btnImportJSON');
+  const impFile    = document.getElementById('importFile');
+  const impMsg     = document.getElementById('importMsg');
+
+  expJsonBtn?.addEventListener('click', async ()=>{
+    try{
+      expJsonBtn.disabled = true;
+      await exportDataJSON();
+    }catch(e){
+      alert('تعذّر التصدير: ' + e.message);
+    }finally{
+      expJsonBtn.disabled = false;
+    }
+  });
+
+  expCsvBtn?.addEventListener('click', async ()=>{
+    try{
+      expCsvBtn.disabled = true;
+      await exportWorkoutsCSV();
+    }catch(e){
+      alert('تعذّر التصدير: ' + e.message);
+    }finally{
+      expCsvBtn.disabled = false;
+    }
+  });
+
+  impBtn?.addEventListener('click', async ()=>{
+    const file = impFile?.files?.[0];
+    if (!file){ impMsg.textContent = 'اختر ملف JSON أولاً.'; impMsg.className = 'small mt-2 text-danger'; return; }
+    if (!confirm('سيتم استيراد الجدول (ستُستبدل الخطط للأيام المطابقة). المتابعة؟')) return;
+
+    try{
+      impBtn.disabled = true;
+      await importDataFromJSON(file);
+    }catch(e){
+      alert('تعذّر الاستيراد: ' + e.message);
+    }finally{
+      impBtn.disabled = false;
+    }
+  });
+}
+
+
 // ================== Init ==================
 document.addEventListener('DOMContentLoaded', ()=>{
   initTheme();
@@ -642,4 +829,5 @@ document.addEventListener('DOMContentLoaded', ()=>{
   loadGroups();
   loadGalleryByGroup();
   maybeAutoTour();
+  wireImportExport();
 });

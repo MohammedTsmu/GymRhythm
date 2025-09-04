@@ -199,6 +199,30 @@
       </div>
     </div>
 
+    <div class="card p-3 mt-3" id="importExportCard" data-intro="انسخ بيانات خطتك وارجعها لاحقاً.">
+  <h5 class="mb-2">استيراد / تصدير</h5>
+
+  <div class="d-flex flex-wrap gap-2 mb-2">
+    <button id="btnExportJSON" class="btn btn-light btn-sm">تصدير JSON (كامل)</button>
+    <button id="btnExportCSV"  class="btn btn-outline-light btn-sm">تصدير CSV (التمارين)</button>
+  </div>
+
+  <div class="small text-muted mb-2">
+    JSON يشمل: كل الأيام (date/plan/done) + أسماء المجموعات.  
+    CSV يشمل: الأيام فقط (date, plan, done).
+  </div>
+
+  <div class="border rounded p-2">
+    <label class="form-label mb-1">استيراد JSON</label>
+    <div class="d-flex align-items-center gap-2">
+      <input id="importFile" type="file" accept="application/json" class="form-control form-control-sm">
+      <button id="btnImportJSON" class="btn btn-warning btn-sm">استيراد</button>
+    </div>
+    <div id="importMsg" class="small mt-2"></div>
+  </div>
+</div>
+
+
     <!-- معرض التقدّم -->
     <div class="tab-pane fade" id="pane-gallery" role="tabpanel">
       <div class="row g-3">
