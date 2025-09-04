@@ -67,7 +67,7 @@ Before you start, make sure you have:
 ### 5. Run the App
 - Open your browser and visit:
   ```
-  http://localhost/GymRhythm
+  http://localhost/GymRhythm/public
   ```
 
 🎉 You should now see GymRhythm running locally!
