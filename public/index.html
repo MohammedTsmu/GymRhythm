@@ -20,9 +20,10 @@
   <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 
   <style>
-    /* ============ لوح الألوان عبر متغيرات CSS ============ */
     :root{
-      /* ألوان الثيم الافتراضي (Slate داكن) */
+      font-family: system-ui, "Segoe UI", Tahoma, sans-serif;
+
+      /* الثيم الافتراضي (Slate داكن) */
       --bg:        #0f172a;
       --surface:   #111827;
       --card:      #1f2937;
@@ -31,13 +32,13 @@
       --border:    #243041;
       --accent:    #2563eb;
 
-      /* ألوان الأحداث/الرسم */
+      /* ألوان الأحداث */
       --event-on:   #60a5fa;  /* أزرق */
       --event-off:  #64748b;  /* رمادي */
       --event-done: #22c55e;  /* أخضر */
     }
 
-    /* رمادي Word (مستوحى من "Dark Gray" في أوفيس) */
+    /* رمادي Word */
     body.theme-gray{
       --bg:      #2b2b2b;
       --surface: #2f2f2f;
@@ -52,7 +53,7 @@
       --event-done: #34d399;
     }
 
-    /* أوف-وايت فاتح هادئ */
+    /* أوف-وايت فاتح */
     body.theme-offwhite{
       --bg:      #f5f6f7;
       --surface: #ffffff;
@@ -67,6 +68,24 @@
       --event-done: #10b981;
     }
 
+    /* Sepia: مريح للعين */
+    body.theme-sepia{
+      --bg:      #f7f3e9;   /* ورق دافئ */
+      --surface: #fffaf2;   /* خلفيات خفيفة */
+      --card:    #fffdf7;   /* بطاقات أفتح */
+      --text:    #2a2a2a;   /* نص داكن واضح */
+      --muted:   #5b564c;   /* نص ثانوي */
+      --border:  #e7e0d3;   /* حدود ناعمة */
+      --accent:  #2f7d7b;   /* أخضر مزرق هادئ */
+
+      --event-on:   #3f86d9;
+      --event-off:  #b6ad9f;
+      --event-done: #2e7d32;
+    }
+    body.theme-sepia .list-group-item{ background:#fff7ec; color:#2a2a2a; border-color: var(--border); }
+    body.theme-sepia .nav-link.active{ background:#efe7d8; border-color:var(--border); color:#1f1f1f; }
+    body.theme-sepia { line-height: 1.6; }
+
     /* ============ تطبيق الألوان ============ */
     html, body{ height:100%; }
     body{ background:var(--bg); color:var(--text); }
@@ -77,7 +96,7 @@
     .form-control, .form-select, .btn, .list-group-item{
       background:#fff; color:#111; border-color:var(--border);
     }
-    .list-group-item{ background: #0b1220; color: var(--text); }
+    .list-group-item{ background:#0b1220; color:var(--text); }
     body.theme-offwhite .list-group-item{ background:#f3f4f6; color:#111; }
 
     /* FullCalendar عنوان */
@@ -90,7 +109,7 @@
       background:var(--accent); color:#fff; border:0; box-shadow: 0 6px 20px rgba(0,0,0,.35);
     }
 
-    /* Intro.js (يمشي مع الثيم) */
+    /* Intro.js مع الثيم */
     .introjs-tooltip { background:var(--surface); color:var(--text); border:1px solid var(--border); direction: rtl; text-align: right; }
     .introjs-tooltipbuttons .introjs-button { background:var(--accent); color:#fff; border:0; }
     .introjs-button.introjs-prevbutton { background:#374151; }
@@ -98,6 +117,21 @@
     .introjs-overlay { background: rgba(0,0,0,.55); }
     .introjs-progress { background:#374151; }
     .introjs-progressbar { background:var(--accent) !important; }
+
+    /* === Gallery cards responsive === */
+    #galleryGrid .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    #galleryGrid img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      object-fit: cover;
+      border-radius: .5rem;
+    }
   </style>
 </head>
 <body class="theme-slate">
@@ -107,19 +141,12 @@
   <!-- اختيار الثيم -->
   <div class="ms-auto d-flex align-items-center gap-2">
     <label class="small me-1">السِّمة:</label>
-    <!-- <select id="themeSelect" class="form-select form-select-sm" style="width:180px">
+    <select id="themeSelect" class="form-select form-select-sm" style="width:220px">
       <option value="theme-slate">Slate (داكن)</option>
       <option value="theme-gray">رمادي Word</option>
       <option value="theme-offwhite">أوف-وايت فاتح</option>
-    </select> -->
-
-    <select id="themeSelect" class="form-select form-select-sm" style="width:180px">
-      <option value="theme-slate">Slate (داكن)</option>
-      <option value="theme-gray">رمادي Word</option>
-      <option value="theme-offwhite">أوف-وايت فاتح</option>
-      <option value="theme-sepia">Sepia (مريح)</option> <!-- 👈 جديد -->
+      <option value="theme-sepia">Sepia (مريح)</option>
     </select>
-
   </div>
 </nav>
 
@@ -195,33 +222,35 @@
             <button id="btnSavePhoto" class="btn btn-light btn-sm mt-2">حفظ الصورة</button>
             <div id="photoMsg" class="small mt-2"></div>
           </div>
+
+          <!-- استيراد / تصدير -->
+          <div class="card p-3 mt-3" id="importExportCard" data-intro="انسخ بيانات خطتك وارجعها لاحقاً.">
+            <h5 class="mb-2">استيراد / تصدير</h5>
+
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              <button id="btnExportJSON" class="btn btn-light btn-sm">تصدير JSON (كامل)</button>
+              <button id="btnExportCSV"  class="btn btn-outline-light btn-sm">تصدير CSV (التمارين)</button>
+            </div>
+
+            <div class="small text-muted mb-2">
+              JSON يشمل: كل الأيام (date/plan/done) + أسماء المجموعات. <br>
+              CSV يشمل: الأيام فقط (date, plan, done).
+            </div>
+
+            <div class="border rounded p-2">
+              <label class="form-label mb-1">استيراد JSON</label>
+              <div class="d-flex align-items-center gap-2">
+                <input id="importFile" type="file" accept="application/json" class="form-control form-control-sm">
+                <button id="btnImportJSON" class="btn btn-warning btn-sm">استيراد</button>
+              </div>
+              <div id="importMsg" class="small mt-2"></div>
+            </div>
+          </div>
+          <!-- /استيراد / تصدير -->
+
         </div>
       </div>
     </div>
-
-    <div class="card p-3 mt-3" id="importExportCard" data-intro="انسخ بيانات خطتك وارجعها لاحقاً.">
-  <h5 class="mb-2">استيراد / تصدير</h5>
-
-  <div class="d-flex flex-wrap gap-2 mb-2">
-    <button id="btnExportJSON" class="btn btn-light btn-sm">تصدير JSON (كامل)</button>
-    <button id="btnExportCSV"  class="btn btn-outline-light btn-sm">تصدير CSV (التمارين)</button>
-  </div>
-
-  <div class="small text-muted mb-2">
-    JSON يشمل: كل الأيام (date/plan/done) + أسماء المجموعات.  
-    CSV يشمل: الأيام فقط (date, plan, done).
-  </div>
-
-  <div class="border rounded p-2">
-    <label class="form-label mb-1">استيراد JSON</label>
-    <div class="d-flex align-items-center gap-2">
-      <input id="importFile" type="file" accept="application/json" class="form-control form-control-sm">
-      <button id="btnImportJSON" class="btn btn-warning btn-sm">استيراد</button>
-    </div>
-    <div id="importMsg" class="small mt-2"></div>
-  </div>
-</div>
-
 
     <!-- معرض التقدّم -->
     <div class="tab-pane fade" id="pane-gallery" role="tabpanel">
